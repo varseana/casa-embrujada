@@ -1,0 +1,346 @@
+/* ---------- Casa: contenedor ---------- */
+.house {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--void);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--candle);
+}
+
+/* ---------- Exterior ---------- */
+.exterior,
+.scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* Stage = la fachada a 1.6:1 cubriendo el viewport (mismo calculo que
+   stageSize() en Exterior.tsx). El transform es la "camara"; el origen es
+   el centro de la puerta, asi todo zoom apunta hacia ella. */
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100vw, 160vh);
+  aspect-ratio: 1.6;
+  transform: translate(-50%, -50%);
+  transform-origin: 50% 64.5%;
+}
+
+.facade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Vano de la puerta: x 712..888, y 478..812 sobre 1600x1000 */
+.doorway {
+  position: absolute;
+  left: 44.5%;
+  top: 47.8%;
+  width: 11%;
+  height: 33.4%;
+  perspective: 900px;
+  overflow: hidden; /* pasado los 90 grados la hoja no se asoma sobre el marco */
+}
+
+.door {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 50%; /* bisagra izquierda */
+  transform-style: preserve-3d;
+}
+
+.door-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  backface-visibility: hidden;
+}
+
+.door-back {
+  transform: rotateY(180deg);
+}
+
+.door-hit {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.door-hit:disabled {
+  cursor: default;
+}
+
+.door-hit:focus-visible {
+  outline: 1px solid var(--candle);
+  outline-offset: 6px;
+}
+
+/* Al apuntar a la puerta, la aldaba toma la luz del farol. */
+.knocker circle:last-child {
+  transition: stroke 0.3s ease;
+}
+.doorway:has(.door-hit:hover:not(:disabled)) .knocker circle:last-child,
+.doorway:has(.door-hit:focus-visible) .knocker circle:last-child {
+  stroke: #c89a52;
+}
+
+/* Luz calida: faroles y ventanas titilan a destiempo. */
+.lamp-halo {
+  animation: flicker 3.7s steps(1) infinite;
+}
+.lamp-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: flame 1.3s ease-in-out infinite alternate;
+}
+.win-glow {
+  animation: flicker 6.1s steps(1) infinite;
+}
+.pumpkin-face {
+  animation: flicker 2.9s steps(1) infinite;
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  8% {
+    opacity: 0.78;
+  }
+  11% {
+    opacity: 0.95;
+  }
+  46% {
+    opacity: 0.86;
+  }
+  49% {
+    opacity: 1;
+  }
+  73% {
+    opacity: 0.7;
+  }
+  75% {
+    opacity: 0.92;
+  }
+}
+
+@keyframes flame {
+  from {
+    transform: scale(1, 1);
+  }
+  to {
+    transform: scale(0.86, 1.12);
+  }
+}
+
+/* Silueta que cruza la ventana derecha cada tanto. */
+.win-ghost {
+  transform-box: view-box;
+  animation: ghost-pass 17s ease-in-out infinite;
+  animation-delay: 5s;
+  transform: translateX(-200px);
+}
+
+@keyframes ghost-pass {
+  0%,
+  62% {
+    transform: translateX(-200px);
+  }
+  78% {
+    transform: translateX(0);
+  }
+  84% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(200px);
+  }
+}
+
+/* La luz del hall sale por la puerta al abrirse. */
+.light-spill {
+  opacity: 0;
+  transition: opacity 1.8s ease;
+}
+.exterior.is-opening .light-spill,
+.exterior.is-entering .light-spill {
+  opacity: 1;
+}
+
+/* Niebla baja: dos capas lentas a distinta velocidad. Fuera de la camara. */
+.fog {
+  position: absolute;
+  inset: auto 0 0;
+  height: 42vh;
+  pointer-events: none;
+  overflow: hidden;
+}
+.fog span {
+  position: absolute;
+  bottom: -6vh;
+  left: -50%;
+  width: 200%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse 18% 40% at 20% 80%, rgba(170, 170, 160, 0.09), transparent 70%),
+    radial-gradient(ellipse 22% 35% at 55% 90%, rgba(170, 170, 160, 0.08), transparent 70%),
+    radial-gradient(ellipse 16% 30% at 82% 85%, rgba(170, 170, 160, 0.07), transparent 70%);
+  animation: fog-drift 48s linear infinite alternate;
+}
+.fog span:last-child {
+  bottom: -12vh;
+  animation-duration: 71s;
+  animation-direction: alternate-reverse;
+  opacity: 0.8;
+}
+
+@keyframes fog-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(25%);
+  }
+}
+
+/* Grano de pelicula: imagen estatica, no se re-rasteriza con la camara. */
+.grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.12;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.exterior-title {
+  position: absolute;
+  top: clamp(20px, 5vh, 56px);
+  left: clamp(20px, 5vw, 64px);
+  transition: opacity 0.8s ease;
+}
+.exterior-title h1 {
+  font-size: clamp(40px, 6.4vw, 92px);
+  line-height: 0.92;
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1,
+    'opsz' 144;
+}
+
+.door-hint {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(18px, 7vh, 72px);
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--bone);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s ease;
+}
+.exterior.is-ready .door-hint {
+  opacity: 1;
+  animation: hint-breathe 3.2s ease-in-out 1s infinite;
+}
+
+@keyframes hint-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.skip {
+  position: absolute;
+  right: clamp(16px, 4vw, 48px);
+  bottom: clamp(16px, 4vh, 40px);
+  border: none;
+  background: none;
+  padding: 8px 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--bone-dim);
+  cursor: pointer;
+  border-bottom: 1px solid var(--bone-faint);
+  transition:
+    color 0.2s ease,
+    opacity 0.6s ease;
+}
+.skip:hover {
+  color: var(--bone);
+}
+
+.exterior.is-knocking .exterior-title,
+.exterior.is-opening .exterior-title,
+.exterior.is-entering .exterior-title,
+.exterior.is-knocking .skip,
+.exterior.is-opening .skip,
+.exterior.is-entering .skip {
+  opacity: 0;
+}
+
+/* Umbral: al cruzar la puerta todo se funde al ambar oscuro del hall. */
+.threshold {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: #0b0703;
+  opacity: 0;
+  transition: opacity 0.9s ease-in 0.8s;
+}
+.exterior.is-entering .threshold {
+  opacity: 1;
+}
+
+/* ---------- Lobby (placeholder bloque 2) ---------- */
+.lobby {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: clamp(24px, 8vw, 96px);
+  background: #0b0703;
+  animation: lobby-in 1.2s ease both;
+}
+.lobby-note p:last-child {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3vw, 36px);
+}
+
+@keyframes lobby-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lamp-halo,
+  .lamp-flame,
+  .win-glow,
+  .pumpkin-face,
+  .win-ghost,
+  .fog span,
+  .exterior.is-ready .door-hint {
+    animation: none;
+  }
+}
