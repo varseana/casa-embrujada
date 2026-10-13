@@ -12,24 +12,38 @@ export async function signInAdmin(email: string, password: string): Promise<Sign
   const sb = supabase()
   const { error } = await sb.auth.signInWithPassword({ email, password })
   if (error) return { ok: false, error: error.message }
-  if (!(await isHouseAdmin())) {
-    await sb.auth.signOut()
-    return { ok: false, error: 'Esta cuenta no es admin de la Casa Embrujada.' }
-  }
-  return { ok: true }
+  const check = await adminCheck()
+  if (!check.ok) await sb.auth.signOut()
+  return check
 }
 
 export async function signOutAdmin(): Promise<void> {
   await supabase().auth.signOut()
 }
 
-// True si hay sesion activa Y el usuario esta en embrujada.admins.
-export async function isHouseAdmin(): Promise<boolean> {
+// Verifica que la sesion activa este en embrujada.admins. Distingue "no es
+// admin" de "el schema no esta expuesto en la API" para no confundir un
+// problema de configuracion con un problema de permisos.
+async function adminCheck(): Promise<SignInResult> {
   const sb = supabase()
   const { data: userRes } = await sb.auth.getUser()
-  if (!userRes.user) return false
+  if (!userRes.user) return { ok: false, error: 'No hay sesion activa.' }
   // RLS de embrujada.admins solo deja ver la propia fila: si vuelve una, es admin.
   const { data, error } = await sb.from('admins').select('user_id').limit(1)
-  if (error) return false
-  return (data?.length ?? 0) > 0
+  if (error) {
+    if (error.code === 'PGRST106') {
+      return {
+        ok: false,
+        error: 'Falta exponer el schema `embrujada` en Supabase > Project Settings > API > Exposed schemas.',
+      }
+    }
+    return { ok: false, error: error.message }
+  }
+  if ((data?.length ?? 0) === 0) return { ok: false, error: 'Esta cuenta no es admin de la Casa Embrujada.' }
+  return { ok: true }
+}
+
+// True si hay sesion activa Y el usuario esta en embrujada.admins.
+export async function isHouseAdmin(): Promise<boolean> {
+  return (await adminCheck()).ok
 }
