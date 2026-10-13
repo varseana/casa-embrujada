@@ -26,3 +26,6 @@ dist-ssr
 
 # Supabase env local
 .env
+
+# Credenciales locales (nunca al repo)
+*.local.sql
