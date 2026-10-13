@@ -1,0 +1,403 @@
+/* Casa Embrujada :: sistema base.
+   Negro puro + luz de vela ambar como unico acento + hueso para el texto.
+   Sin border-radius, sin drop shadows, sin glass: la estructura la dan
+   las esquinas en corchete y las lineas finas. */
+:root {
+  --void: #000;
+  --bone: #e9e2d0;
+  --bone-dim: rgba(233, 226, 208, 0.58);
+  --bone-faint: rgba(233, 226, 208, 0.14);
+  --candle: #e8a13a;
+  --ember: #b8432b;
+  --moss: #2f3a2a;
+  --font-sans: 'Hanken Grotesk Variable', sans-serif;
+  --font-display: 'Fraunces Variable', Georgia, serif;
+  font-family: var(--font-sans);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  background: var(--void);
+  color: var(--bone);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+  border-radius: 0;
+}
+
+:focus-visible {
+  outline: 1px solid var(--candle);
+  outline-offset: 3px;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* Esquinas en corchete: marco sin caja. */
+.bracket {
+  position: relative;
+}
+.bracket::before,
+.bracket::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--candle);
+  pointer-events: none;
+}
+.bracket::before {
+  top: -1px;
+  left: -1px;
+  border-right: none;
+  border-bottom: none;
+}
+.bracket::after {
+  bottom: -1px;
+  right: -1px;
+  border-left: none;
+  border-top: none;
+}
+
+.link {
+  display: inline-block;
+  color: var(--bone);
+  text-decoration: none;
+  border: 1px solid var(--bone-faint);
+  padding: 8px 14px;
+  font-size: 13px;
+  background: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.link:hover {
+  border-color: var(--candle);
+}
+
+/* ---------- Placeholder / 404 ---------- */
+.placeholder {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 14px;
+  padding: clamp(24px, 8vw, 96px);
+}
+.placeholder h1 {
+  font-size: clamp(36px, 7vw, 84px);
+  line-height: 0.95;
+  max-width: 14ch;
+}
+.placeholder p {
+  margin: 0 0 10px;
+  color: var(--bone-dim);
+  max-width: 48ch;
+}
+
+/* ---------- Admin login ---------- */
+.admin-login {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  padding: clamp(24px, 8vw, 96px);
+}
+
+.admin-login form {
+  width: min(380px, 100%);
+  padding: 28px;
+  border: 1px solid var(--bone-faint);
+}
+
+.admin-login h1 {
+  font-size: 34px;
+  margin-bottom: 6px;
+}
+
+.admin-login p {
+  margin: 0 0 18px;
+  color: var(--bone-dim);
+  font-size: 14px;
+}
+
+.admin-login input,
+.admin-login button {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 15px;
+}
+
+.admin-login input {
+  border: 1px solid var(--bone-faint);
+  background: var(--void);
+  margin-bottom: 12px;
+}
+
+.admin-login button {
+  border: 1px solid var(--candle);
+  background: var(--candle);
+  color: var(--void);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.err {
+  color: #ff9a80;
+  font-size: 13px;
+}
+
+/* ---------- Admin dashboard ---------- */
+.admin {
+  height: 100%;
+  overflow-y: auto;
+  padding: 24px clamp(16px, 5vw, 48px) 48px;
+}
+
+.admin-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--bone-faint);
+}
+
+.admin-head h1 {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.admin-head .count {
+  display: block;
+  margin-top: 6px;
+  color: var(--candle);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.head-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.demo-tag {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bone-dim);
+}
+
+.dropzone {
+  display: block;
+  border: 1px dashed var(--bone-faint);
+  padding: 26px 28px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.dropzone.is-dragging {
+  border-color: var(--candle);
+  background: rgba(232, 161, 58, 0.06);
+}
+
+.dropzone strong {
+  font-size: 17px;
+}
+
+.dropzone p {
+  margin: 8px 0 0;
+  color: var(--bone-dim);
+  font-size: 13px;
+  max-width: 70ch;
+  line-height: 1.5;
+}
+
+.progress,
+.banner {
+  margin: 14px 0;
+  font-size: 14px;
+  color: var(--candle);
+  font-variant-numeric: tabular-nums;
+}
+
+.banner.err {
+  color: #ff9a80;
+  padding-left: 18px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* Celda: el PNG se ve entero (contain) sobre un piso de vela, como en la casa. */
+.cell {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border: 1px solid var(--bone-faint);
+  background:
+    radial-gradient(ellipse 60% 10% at 50% 94%, rgba(232, 161, 58, 0.16), transparent 70%),
+    #0a0806;
+}
+
+.cell img {
+  position: absolute;
+  inset: 10px 10px 26px;
+  width: calc(100% - 20px);
+  height: calc(100% - 36px);
+  object-fit: contain;
+  object-position: bottom;
+}
+
+.cell-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 6px 8px;
+  border: none;
+  border-top: 1px solid var(--bone-faint);
+  text-align: left;
+  font-size: 11px;
+  color: var(--bone);
+  background: var(--void);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+
+.cell-name:hover {
+  color: var(--candle);
+}
+
+.cell-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.cell:hover .cell-actions,
+.cell:focus-within .cell-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .cell-actions {
+    opacity: 1;
+  }
+}
+
+.cell-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--bone-faint);
+  background: var(--void);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+/* Hit area de 38px sin agrandar el boton visible. */
+.cell-btn::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+
+.cell-btn:hover {
+  border-color: var(--candle);
+}
+
+.cell-btn:active {
+  transform: scale(0.92);
+}
+
+.cell-btn.danger:hover {
+  background: var(--ember);
+  border-color: var(--ember);
+}
+
+.cell-busy {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.78);
+  color: var(--candle);
+  font-size: 12px;
+}
+
+.cell-edit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px;
+  background: var(--void);
+  border-top: 1px solid var(--candle);
+}
+
+.cell-edit input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--bone-faint);
+  background: var(--void);
+  font-size: 13px;
+}
+
+.cell-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--bone-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
