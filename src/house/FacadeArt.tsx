@@ -9,7 +9,7 @@
 const W = 1600
 
 // Telaraña: radios desde una esquina + hilos curvos entre radios.
-function Cobweb({ x, y, r, flip = 1 }: { x: number; y: number; r: number; flip?: 1 | -1 }) {
+export function Cobweb({ x, y, r, flip = 1 }: { x: number; y: number; r: number; flip?: 1 | -1 }) {
   const spokes = [0, 18, 38, 58, 76, 90].map((deg) => (deg * Math.PI) / 180)
   const pt = (a: number, d: number) => [x + flip * Math.cos(a) * d, y + Math.sin(a) * d] as const
   const rings = [0.28, 0.5, 0.72, 0.94]

@@ -29,3 +29,7 @@ dist-ssr
 
 # Credenciales locales (nunca al repo)
 *.local.sql
+
+# Assets de mockup con marca de agua (no se publican)
+pngtree-*.png
+git-push.txt

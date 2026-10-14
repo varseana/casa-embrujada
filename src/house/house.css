@@ -311,20 +311,87 @@
   opacity: 1;
 }
 
-/* ---------- Lobby (placeholder bloque 2) ---------- */
-.lobby {
+/* ---------- Lobby: hall con caminantes ---------- */
+.lobby,
+.game {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: flex-end;
-  padding: clamp(24px, 8vw, 96px);
   background: #0b0703;
   animation: lobby-in 1.2s ease both;
 }
-.lobby-note p:last-child {
+
+/* Hall a 1.6:1 cubriendo el viewport, anclado ABAJO: el piso nunca se corta
+   (mismo calculo que resize() en walkers.ts). */
+.hall-stage {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: max(100vw, 160vh);
+  aspect-ratio: 1.6;
+  transform: translateX(-50%);
+}
+.hall-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.hall-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.lobby-head {
+  position: absolute;
+  top: clamp(20px, 5vh, 56px);
+  left: clamp(20px, 5vw, 64px);
+  max-width: 34ch;
+}
+.lobby-head h1 {
+  font-size: clamp(32px, 4.4vw, 64px);
+  line-height: 0.95;
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1,
+    'opsz' 144;
+}
+.lobby-count {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--bone-dim);
+}
+
+/* Boton del minijuego: marco en corchete, la vela se enciende al apuntar. */
+.lobby .play-btn {
+  /* gana sobre .bracket (position: relative) sin depender del orden del CSS */
+  position: absolute;
+  top: clamp(20px, 5vh, 56px);
+  right: clamp(20px, 5vw, 64px);
+  display: grid;
+  gap: 2px;
+  padding: 14px 20px;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  text-align: left;
+  cursor: pointer;
+}
+.play-btn .eyebrow {
   margin: 0;
+}
+.play-label {
   font-family: var(--font-display);
-  font-size: clamp(22px, 3vw, 36px);
+  font-size: clamp(18px, 1.8vw, 24px);
+  transition: color 0.2s ease;
+}
+.play-btn:hover .play-label,
+.play-btn:focus-visible .play-label {
+  color: var(--candle);
+}
+
+.game-exit {
+  position: absolute;
+  right: clamp(16px, 4vw, 48px);
+  bottom: clamp(16px, 4vh, 40px);
 }
 
 @keyframes lobby-in {

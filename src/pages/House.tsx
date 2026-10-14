@@ -6,13 +6,17 @@ import '../house/house.css'
 // y el lobby se descarga mientras corre el acercamiento.
 const loadLobby = () => import('../house/Lobby')
 const Lobby = lazy(loadLobby)
+// El juego solo se descarga si alguien aprieta Jugar.
+const BalloonGame = lazy(() => import('../game/BalloonGame'))
 
 const ENTERED_KEY = 'embrujada-entered'
 
-// Flujo publico: exterior (puerta) -> lobby. Quien ya entro en esta sesion
+type View = 'outside' | 'lobby' | 'game'
+
+// Flujo publico: exterior (puerta) -> lobby <-> minijuego. Quien ya entro en esta sesion
 // vuelve a ver la puerta de cerca, sin el acercamiento largo.
 export default function House() {
-  const [inside, setInside] = useState(false)
+  const [view, setView] = useState<View>('outside')
   const [returning] = useState(() => sessionStorage.getItem(ENTERED_KEY) === '1')
 
   useEffect(() => {
@@ -21,17 +25,21 @@ export default function House() {
 
   const enter = useCallback(() => {
     sessionStorage.setItem(ENTERED_KEY, '1')
-    setInside(true)
+    setView('lobby')
   }, [])
 
   return (
     <main className="house">
-      {inside ? (
+      {view === 'outside' && <Exterior returning={returning} onEnter={enter} />}
+      {view === 'lobby' && (
         <Suspense fallback={<div className="lobby" />}>
-          <Lobby />
+          <Lobby onPlay={() => setView('game')} />
         </Suspense>
-      ) : (
-        <Exterior returning={returning} onEnter={enter} />
+      )}
+      {view === 'game' && (
+        <Suspense fallback={<div className="lobby" />}>
+          <BalloonGame onExit={() => setView('lobby')} />
+        </Suspense>
       )}
     </main>
   )
