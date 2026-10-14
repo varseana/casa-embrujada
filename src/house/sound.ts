@@ -233,3 +233,80 @@ export async function playCreak(): Promise<void> {
   out(comp)
   src.start(t0)
 }
+
+// ---------------------------------------------------------------------------
+// Minijuego: dardo y globos (sintetizados, sin esperar a ningun sample)
+// ---------------------------------------------------------------------------
+
+// Silbido del dardo: ruido pasa-banda que sube de tono mientras se aleja.
+export function playThrow(): void {
+  const c = ctx
+  if (!c || !master) return
+  const t = c.currentTime
+  const src = c.createBufferSource()
+  src.buffer = noiseBuffer(c, 0.3)
+  const bp = c.createBiquadFilter()
+  bp.type = 'bandpass'
+  bp.Q.value = 2.5
+  bp.frequency.setValueAtTime(900, t)
+  bp.frequency.exponentialRampToValueAtTime(2600, t + 0.25)
+  const g = c.createGain()
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.exponentialRampToValueAtTime(0.16, t + 0.05)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28)
+  src.connect(bp).connect(g)
+  g.connect(master)
+  src.start(t)
+  src.stop(t + 0.3)
+}
+
+// Reventon: chasquido de ruido brillante + golpe grave corto. Un poco de
+// variacion de tono para que una racha no suene a loop.
+export function playPop(): void {
+  const c = ctx
+  if (!c || !master) return
+  const t = c.currentTime
+  const snap = c.createBufferSource()
+  snap.buffer = noiseBuffer(c, 0.12)
+  const hp = c.createBiquadFilter()
+  hp.type = 'highpass'
+  hp.frequency.value = 1400 + Math.random() * 900
+  const sg = c.createGain()
+  sg.gain.setValueAtTime(0.7, t)
+  sg.gain.exponentialRampToValueAtTime(0.0001, t + 0.1)
+  snap.connect(hp).connect(sg)
+  out(sg)
+
+  const body = c.createOscillator()
+  body.type = 'sine'
+  body.frequency.setValueAtTime(240 + Math.random() * 60, t)
+  body.frequency.exponentialRampToValueAtTime(70, t + 0.09)
+  const bg = c.createGain()
+  bg.gain.setValueAtTime(0.5, t)
+  bg.gain.exponentialRampToValueAtTime(0.0001, t + 0.12)
+  body.connect(bg)
+  out(bg)
+
+  snap.start(t)
+  snap.stop(t + 0.12)
+  body.start(t)
+  body.stop(t + 0.13)
+}
+
+// Dardo clavado en la pared (fallo): golpe seco de madera, apagado.
+export function playThud(): void {
+  const c = ctx
+  if (!c || !master) return
+  const t = c.currentTime
+  const o = c.createOscillator()
+  o.type = 'triangle'
+  o.frequency.setValueAtTime(180, t)
+  o.frequency.exponentialRampToValueAtTime(60, t + 0.08)
+  const g = c.createGain()
+  g.gain.setValueAtTime(0.45, t)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14)
+  o.connect(g)
+  out(g)
+  o.start(t)
+  o.stop(t + 0.15)
+}

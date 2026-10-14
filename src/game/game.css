@@ -1,0 +1,117 @@
+/* ---------- Minijuego: Revienta los globos ---------- */
+.game-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  touch-action: none; /* el toque lanza, no hace scroll ni zoom */
+}
+.game.is-playing .game-canvas {
+  cursor: none; /* la mira la dibuja el canvas */
+}
+
+.game-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.hud-room {
+  position: absolute;
+  top: clamp(16px, 4vh, 40px);
+  left: clamp(16px, 4vw, 48px);
+}
+.hud-room-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.4vw, 30px);
+}
+.hud-score {
+  position: absolute;
+  top: clamp(16px, 4vh, 40px);
+  right: clamp(16px, 4vw, 48px);
+  text-align: right;
+}
+.hud-score-num {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4vw, 52px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.hud-streak {
+  margin: 6px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--candle);
+}
+.hud-darts {
+  position: absolute;
+  left: clamp(16px, 4vw, 48px);
+  bottom: clamp(16px, 4vh, 40px);
+  display: grid;
+  gap: 10px;
+}
+.dart-icon {
+  display: block;
+  width: 56px;
+  height: 14px;
+  transition: opacity 0.3s ease;
+}
+.dart-icon.is-spent {
+  opacity: 0.16;
+}
+
+/* Tarjeta de inicio / fin: marco en corchete sobre penumbra. */
+.game .game-card {
+  /* gana sobre .bracket (position: relative) */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(460px, calc(100vw - 40px));
+  padding: 28px 30px 30px;
+  background: rgba(0, 0, 0, 0.78);
+}
+.game-card h1 {
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 0.95;
+}
+.game-rules {
+  margin: 18px 0 24px;
+  padding: 0 0 0 18px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--bone-dim);
+}
+.game-rules li + li {
+  margin-top: 6px;
+}
+.game-final {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(48px, 7vw, 80px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.game-sub {
+  margin: 10px 0 24px;
+  color: var(--bone-dim);
+}
+.game-primary {
+  border: 1px solid var(--candle);
+  background: transparent;
+  padding: 12px 22px;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--candle);
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+.game-primary:hover,
+.game-primary:focus-visible {
+  background: var(--candle);
+  color: #000;
+}
