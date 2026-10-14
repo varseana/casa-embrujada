@@ -361,12 +361,18 @@
   color: var(--bone-dim);
 }
 
-/* Boton del minijuego: marco en corchete, la vela se enciende al apuntar. */
-.lobby .play-btn {
-  /* gana sobre .bracket (position: relative) sin depender del orden del CSS */
+/* Columna del minijuego: boton + podio, arriba a la derecha. */
+.lobby-game {
   position: absolute;
   top: clamp(20px, 5vh, 56px);
   right: clamp(20px, 5vw, 64px);
+  display: grid;
+  gap: 18px;
+  width: min(260px, calc(100vw - 40px));
+}
+
+/* Boton: marco en corchete, la vela se enciende al apuntar. */
+.play-btn {
   display: grid;
   gap: 2px;
   padding: 14px 20px;
@@ -386,6 +392,42 @@
 .play-btn:hover .play-label,
 .play-btn:focus-visible .play-label {
   color: var(--candle);
+}
+
+.podium {
+  padding: 0 20px;
+}
+.podium ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.podium li {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--bone-faint);
+  font-size: 14px;
+}
+.podium-rank {
+  font-family: var(--font-display);
+  color: var(--candle);
+}
+.podium-alias {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.podium-score {
+  font-variant-numeric: tabular-nums;
+  color: var(--bone-dim);
+}
+.podium-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--bone-dim);
 }
 
 .game-exit {
@@ -409,5 +451,14 @@
   .fog span,
   .exterior.is-ready .door-hint {
     animation: none;
+  }
+}
+
+/* Pantallas angostas: el podio baja para no pisar el titulo. */
+@media (max-width: 640px) {
+  .lobby-game {
+    top: auto;
+    bottom: 20px;
+    right: 20px;
   }
 }

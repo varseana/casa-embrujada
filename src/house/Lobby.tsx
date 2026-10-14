@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { listCharacters, type Character } from '../lib/characters'
+import { topScores, type ScoreRow } from '../lib/scores'
 import HallArt from './HallArt'
 import { HallScene } from './walkers'
 
@@ -13,6 +14,7 @@ export default function Lobby({ onPlay }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sceneRef = useRef<HallScene | null>(null)
   const [items, setItems] = useState<Character[] | null>(null)
+  const [podium, setPodium] = useState<ScoreRow[] | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -33,6 +35,17 @@ export default function Lobby({ onPlay }: Props) {
     listCharacters()
       .then((list) => alive && setItems(list))
       .catch(() => alive && setItems([]))
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // el lobby se monta de nuevo al volver del juego: el podio se refresca solo
+  useEffect(() => {
+    let alive = true
+    topScores(3)
+      .then((rows) => alive && setPodium(rows))
+      .catch(() => alive && setPodium([]))
     return () => {
       alive = false
     }
@@ -64,10 +77,29 @@ export default function Lobby({ onPlay }: Props) {
         </p>
       </header>
 
-      <button type="button" className="play-btn bracket" onClick={onPlay}>
-        <span className="eyebrow">Minijuego</span>
-        <span className="play-label">Revienta los globos</span>
-      </button>
+      <aside className="lobby-game">
+        <button type="button" className="play-btn bracket" onClick={onPlay}>
+          <span className="eyebrow">Minijuego</span>
+          <span className="play-label">Revienta los globos</span>
+        </button>
+
+        <section className="podium" aria-label="Mejores puntajes">
+          <p className="eyebrow">Podio</p>
+          {podium === null ? null : podium.length === 0 ? (
+            <p className="podium-empty">Nadie ha jugado todavia.</p>
+          ) : (
+            <ol>
+              {podium.map((r, i) => (
+                <li key={r.alias}>
+                  <span className="podium-rank">{i + 1}</span>
+                  <span className="podium-alias">{r.alias}</span>
+                  <span className="podium-score">{r.score.toLocaleString('es-CR')}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      </aside>
     </section>
   )
 }

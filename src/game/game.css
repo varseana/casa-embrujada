@@ -115,3 +115,86 @@
   background: var(--candle);
   color: #000;
 }
+
+.game-secondary {
+  margin-top: 14px;
+  border: none;
+  border-bottom: 1px solid var(--bone-faint);
+  background: none;
+  padding: 6px 0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--bone-dim);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.game-secondary:hover,
+.game-secondary:focus-visible {
+  color: var(--bone);
+}
+
+/* Alias de Amazon: el dominio va fijo, se escribe solo el login. */
+.alias-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.alias-form label {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--candle);
+}
+.alias-field {
+  display: flex;
+  align-items: baseline;
+  border-bottom: 1px solid var(--bone-dim);
+  transition: border-color 0.2s ease;
+}
+.alias-field:focus-within {
+  border-color: var(--candle);
+}
+.alias-field input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 8px 0;
+  font-size: 20px;
+  outline: none;
+}
+.alias-field input::placeholder {
+  color: var(--bone-faint);
+}
+.alias-domain {
+  font-size: 15px;
+  color: var(--bone-dim);
+}
+.alias-help {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--bone-dim);
+}
+.alias-help.is-error {
+  color: #d9654a;
+}
+.alias-form .game-primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: transparent;
+  color: var(--candle);
+}
+.alias-saved {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--candle);
+}
+.game-card .game-primary,
+.game-card .game-secondary {
+  justify-self: start;
+}
+.game-card > .game-primary,
+.game-card > .game-secondary {
+  display: block;
+}

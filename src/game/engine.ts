@@ -11,7 +11,7 @@
 // Todo el tiempo de juego sale de `this.time` (avanza con el dt recortado),
 // asi una pestaña en segundo plano no adelanta transiciones ni dardos.
 
-import { playPop, playThrow, playThud } from '../house/sound'
+import { playGameOver, playPop, playThrow, playThud } from '../house/sound'
 import { paintRoom, roomBox, ROOMS, type Box, type Light } from './rooms'
 
 export type Face = { id: string; url: string; name: string | null }
@@ -348,7 +348,10 @@ export class BalloonScene {
       this.state = 'over'
       this.timer = {
         at: this.time + 900,
-        run: () => this.onOver?.({ score: this.score, rooms: this.round }),
+        run: () => {
+          playGameOver()
+          this.onOver?.({ score: this.score, rooms: this.round })
+        },
       }
     }
   }

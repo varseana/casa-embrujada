@@ -310,3 +310,66 @@ export function playThud(): void {
   o.start(t)
   o.stop(t + 0.15)
 }
+
+// Fin de la partida: organo de capilla que baja en menor (mi, do, la) y cae en
+// un acorde grave de la menor, con una campana lejana encima. ~3 s.
+export function playGameOver(): void {
+  const c = ctx
+  if (!c || !master) return
+  const t0 = c.currentTime + 0.05
+
+  // una voz de organo = dos sierras desafinadas por un pasa-bajos
+  const organ = (freq: number, at: number, dur: number, gain: number) => {
+    const lp = c.createBiquadFilter()
+    lp.type = 'lowpass'
+    lp.frequency.value = 1100
+    lp.Q.value = 0.7
+    const g = c.createGain()
+    g.gain.setValueAtTime(0.0001, at)
+    g.gain.exponentialRampToValueAtTime(gain, at + 0.06)
+    g.gain.setValueAtTime(gain, at + dur * 0.7)
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur)
+    lp.connect(g)
+    out(g)
+    for (const detune of [-7, 7]) {
+      const o = c.createOscillator()
+      o.type = 'sawtooth'
+      o.frequency.value = freq
+      o.detune.value = detune
+      // vibrato lento solo en las notas largas
+      if (dur > 1) {
+        const lfo = c.createOscillator()
+        const depth = c.createGain()
+        lfo.frequency.value = 5
+        depth.gain.value = freq * 0.006
+        lfo.connect(depth).connect(o.frequency)
+        lfo.start(at)
+        lfo.stop(at + dur)
+      }
+      o.connect(lp)
+      o.start(at)
+      o.stop(at + dur + 0.02)
+    }
+  }
+
+  organ(329.63, t0, 0.42, 0.07) // mi
+  organ(261.63, t0 + 0.42, 0.42, 0.07) // do
+  organ(220.0, t0 + 0.84, 0.42, 0.07) // la
+  // acorde final de la menor, grave y largo
+  for (const f of [110.0, 164.81, 220.0, 261.63]) organ(f, t0 + 1.26, 2.2, 0.045)
+
+  // campana: parciales inarmonicos que se apagan lento
+  const bellAt = t0 + 1.26
+  for (const [mult, gain, decay] of [[1, 0.12, 2.6], [2.76, 0.05, 1.6], [5.4, 0.025, 0.9]] as const) {
+    const o = c.createOscillator()
+    o.type = 'sine'
+    o.frequency.value = 196 * mult
+    const g = c.createGain()
+    g.gain.setValueAtTime(gain, bellAt)
+    g.gain.exponentialRampToValueAtTime(0.0001, bellAt + decay)
+    o.connect(g)
+    out(g)
+    o.start(bellAt)
+    o.stop(bellAt + decay + 0.05)
+  }
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { listCharacters } from '../lib/characters'
+import { isValidAlias, normalizeAlias, rememberedAlias, submitScore } from '../lib/scores'
 import { unlockAudio } from '../house/sound'
 import { BalloonScene, type GameResult, type Hud } from './engine'
 import './game.css'
@@ -20,6 +21,91 @@ function DartIcon({ spent }: { spent: boolean }) {
       <path d="M0 6 L6 3.5 V8.5 Z" fill="#9a9384" />
       <path d="M32 6 L46 0 V12 Z" fill="#b8432b" />
     </svg>
+  )
+}
+
+type Save = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; rank: number } | { kind: 'error'; msg: string }
+
+// Pantalla de fin: puntaje + alias de Amazon para entrar al leaderboard.
+function GameOver({ result, onAgain }: { result: GameResult; onAgain: () => void }) {
+  const [alias, setAlias] = useState(rememberedAlias)
+  const [save, setSave] = useState<Save>({ kind: 'idle' })
+  const clean = normalizeAlias(alias)
+  const valid = isValidAlias(clean)
+  const canSave = result.score > 0
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!valid || save.kind === 'saving') return
+    setSave({ kind: 'saving' })
+    try {
+      setSave({ kind: 'saved', rank: await submitScore(clean, result.score, result.rooms) })
+    } catch {
+      setSave({ kind: 'error', msg: 'No se pudo guardar. Intenta otra vez.' })
+    }
+  }
+
+  return (
+    <div className="game-card bracket" role="dialog" aria-label="Fin de la partida">
+      <p className="eyebrow">Fin de la partida</p>
+      <p className="game-final">{result.score.toLocaleString('es-CR')}</p>
+      <p className="game-sub">
+        {result.rooms === 0
+          ? 'Te quedaste en el vestibulo.'
+          : `Limpiaste ${result.rooms} ${result.rooms === 1 ? 'cuarto' : 'cuartos'}.`}
+      </p>
+
+      {canSave && save.kind !== 'saved' && (
+        <form className="alias-form" onSubmit={submit} noValidate>
+          <label htmlFor="alias">Tu alias de Amazon</label>
+          <div className="alias-field">
+            <input
+              id="alias"
+              value={alias}
+              onChange={(e) => {
+                setAlias(e.target.value)
+                if (save.kind === 'error') setSave({ kind: 'idle' })
+              }}
+              placeholder="alias"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              maxLength={40}
+              autoFocus
+              aria-invalid={alias !== '' && !valid}
+              aria-describedby="alias-help"
+            />
+            <span className="alias-domain" aria-hidden="true">
+              @amazon.com
+            </span>
+          </div>
+          <p id="alias-help" className={save.kind === 'error' ? 'alias-help is-error' : 'alias-help'}>
+            {save.kind === 'error'
+              ? save.msg
+              : alias !== '' && !valid
+                ? 'Solo minusculas y numeros, empezando con una letra.'
+                : 'Tu login, sin el @amazon.com.'}
+          </p>
+          <button type="submit" className="game-primary" disabled={!valid || save.kind === 'saving'}>
+            {save.kind === 'saving' ? 'Guardando…' : 'Guardar puntaje'}
+          </button>
+        </form>
+      )}
+
+      {save.kind === 'saved' && (
+        <p className="alias-saved" aria-live="polite">
+          {save.rank <= 3 ? `Entraste al podio: puesto ${save.rank}.` : `Guardado. Vas en el puesto ${save.rank}.`}
+        </p>
+      )}
+
+      <button
+        type="button"
+        className={canSave && save.kind !== 'saved' ? 'game-secondary' : 'game-primary'}
+        onClick={onAgain}
+      >
+        Jugar otra vez
+      </button>
+    </div>
   )
 }
 
@@ -127,20 +213,7 @@ export default function BalloonGame({ onExit }: Props) {
         </div>
       )}
 
-      {phase === 'over' && result && (
-        <div className="game-card bracket" role="dialog" aria-label="Fin de la partida">
-          <p className="eyebrow">Fin de la partida</p>
-          <p className="game-final">{result.score.toLocaleString('es-CR')}</p>
-          <p className="game-sub">
-            {result.rooms === 0
-              ? 'Te quedaste en el vestibulo.'
-              : `Limpiaste ${result.rooms} ${result.rooms === 1 ? 'cuarto' : 'cuartos'}.`}
-          </p>
-          <button type="button" className="game-primary" onClick={play}>
-            Jugar otra vez
-          </button>
-        </div>
-      )}
+      {phase === 'over' && result && <GameOver result={result} onAgain={play} />}
 
       <button type="button" className="skip game-exit" onClick={onExit}>
         Volver al hall
