@@ -436,6 +436,111 @@
   bottom: clamp(16px, 4vh, 40px);
 }
 
+/* Tormenta del hall: todo lo que destella usa la misma duracion y desfase,
+   asi el rayo, la ventana, el retrato y la luz en el piso van juntos.
+   Doble descarga y un resto que se apaga; ~1 s de cada 14 s. */
+.storm-flash,
+.storm-bolt {
+  opacity: 0;
+  animation: storm-flash 14s linear -6s infinite;
+}
+.storm-bolt {
+  animation-name: storm-bolt;
+}
+.storm-far {
+  opacity: 0;
+  animation: storm-far 9.7s ease-in-out -2s infinite;
+}
+.hall-storm {
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    ellipse 60% 55% at 50% 42%,
+    rgba(195, 206, 224, 0.13),
+    rgba(195, 206, 224, 0.03) 75%
+  );
+}
+
+@keyframes storm-flash {
+  0%,
+  70%,
+  100% {
+    opacity: 0;
+  }
+  70.4% {
+    opacity: 1;
+  }
+  71% {
+    opacity: 0.25;
+  }
+  71.8% {
+    opacity: 0.85;
+  }
+  72.6% {
+    opacity: 0.1;
+  }
+  74% {
+    opacity: 0.35;
+  }
+  77% {
+    opacity: 0;
+  }
+}
+
+@keyframes storm-bolt {
+  0%,
+  70.3%,
+  71%,
+  71.7%,
+  72.4%,
+  100% {
+    opacity: 0;
+  }
+  70.4%,
+  70.9%,
+  71.8%,
+  72.3% {
+    opacity: 1;
+  }
+}
+
+@keyframes storm-far {
+  0%,
+  38%,
+  44%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  41% {
+    opacity: 0.4;
+  }
+}
+
+/* Arana: baja, se queda un rato y vuelve a subir. */
+.spider {
+  animation: spider-drop 26s ease-in-out -4s infinite;
+}
+
+@keyframes spider-drop {
+  0%,
+  35% {
+    transform: translateY(0);
+  }
+  55%,
+  72% {
+    transform: translateY(64px);
+  }
+  76% {
+    transform: translateY(56px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
 @keyframes lobby-in {
   from {
     opacity: 0;
@@ -448,6 +553,10 @@
   .win-glow,
   .pumpkin-face,
   .win-ghost,
+  .storm-flash,
+  .storm-bolt,
+  .storm-far,
+  .spider,
   .fog span,
   .exterior.is-ready .door-hint {
     animation: none;

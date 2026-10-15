@@ -63,6 +63,8 @@ export default function Lobby({ onPlay }: Props) {
         <HallArt />
       </div>
       <canvas ref={canvasRef} className="hall-canvas" aria-hidden="true" />
+      {/* el destello del rayo tambien alcanza a los caminantes */}
+      <div className="hall-stage hall-storm storm-flash" aria-hidden="true" />
       <div className="grain" />
 
       <header className="lobby-head">
