@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import Exterior from '../house/Exterior'
+import { music } from '../house/music'
+import MusicPlayer from '../house/MusicPlayer'
 import '../house/house.css'
 
 // El lobby (y el cliente de Supabase) va en otro chunk: la puerta pinta rapido
@@ -21,6 +23,7 @@ export default function House() {
 
   useEffect(() => {
     void loadLobby()
+    music.preload()
   }, [])
 
   const enter = useCallback(() => {
@@ -41,6 +44,8 @@ export default function House() {
           <BalloonGame onExit={() => setView('lobby')} />
         </Suspense>
       )}
+      {/* uno solo para hall y juego: no se desmonta al cambiar de vista */}
+      {view !== 'outside' && <MusicPlayer compact={view === 'game'} />}
     </main>
   )
 }

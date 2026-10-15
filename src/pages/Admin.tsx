@@ -10,12 +10,15 @@ import {
 } from '../lib/characters'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { signInAdmin, signOutAdmin, isHouseAdmin } from '../lib/auth'
+import AdminMusic from './AdminMusic'
 
 // En modo demo (sin backend) se entra con esta clave simple. Con Supabase el
 // login es un usuario real + la tabla embrujada.admins (nada incrustado en el bundle).
 const DEMO_PASSWORD = (import.meta.env.VITE_ADMIN_PASSWORD as string) || 'embrujada2026'
 const AUTH_KEY = 'embrujada-admin-ok'
 const ACCEPT = 'image/png,image/webp'
+
+type Tab = 'personajes' | 'musica'
 
 // "maria-jose_perez.png" -> "Maria Jose Perez". Asi una tanda de 100 PNG sale
 // con nombre sin tipear nada; despues se corrige inline si hace falta.
@@ -40,6 +43,9 @@ export default function Admin() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  const [tab, setTab] = useState<Tab>('personajes')
+  const [trackCount, setTrackCount] = useState(0)
 
   const fail = (msg: string) => setErrors((prev) => [...prev, msg])
 
@@ -205,9 +211,25 @@ export default function Admin() {
     <main className="admin">
       <header className="admin-head">
         <div>
-          <h1>Personajes</h1>
+          <h1 className="admin-kicker">Llaves de la casa</h1>
+          <div className="admin-tabs" role="tablist" aria-label="Secciones">
+            {(['personajes', 'musica'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={tab === t}
+                className={`admin-tab${tab === t ? ' is-active' : ''}`}
+                onClick={() => setTab(t)}
+              >
+                {t === 'personajes' ? 'Personajes' : 'Música'}
+              </button>
+            ))}
+          </div>
           <span className="count">
-            {items.length} {items.length === 1 ? 'habitante' : 'habitantes'}
+            {tab === 'personajes'
+              ? `${items.length} ${items.length === 1 ? 'habitante' : 'habitantes'}`
+              : `${trackCount} ${trackCount === 1 ? 'pista' : 'pistas'}`}
           </span>
         </div>
         <div className="head-actions">
@@ -221,85 +243,91 @@ export default function Admin() {
         </div>
       </header>
 
-      <label
-        className={`dropzone ${dragging ? 'is-dragging' : ''}`}
-        onDragOver={(e) => {
-          e.preventDefault()
-          setDragging(true)
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
-      >
-        <input type="file" accept={ACCEPT} multiple onChange={(e) => onFiles(e.target.files)} hidden />
-        <strong>Soltá los PNG recortados acá</strong>
-        <p>
-          Un PNG por persona, con fondo transparente y cuerpo completo. El nombre sale del archivo
-          (maria-perez.png queda "Maria Perez") y se edita después. Los márgenes vacíos se recortan
-          solos para que los pies toquen el piso.
-        </p>
-      </label>
+      {tab === 'musica' && <AdminMusic onCount={setTrackCount} />}
 
-      {progress && (
-        <div className="progress" role="status">
-          Subiendo {progress.done} / {progress.total}
-        </div>
-      )}
-      {errors.length > 0 && (
-        <ul className="banner err" role="alert">
-          {errors.map((m, i) => (
-            <li key={i}>{m}</li>
-          ))}
-        </ul>
-      )}
-      {loading && items.length === 0 && <div className="progress">Cargando…</div>}
+      {tab === 'personajes' && (
+        <>
+          <label
+            className={`dropzone ${dragging ? 'is-dragging' : ''}`}
+            onDragOver={(e) => {
+              e.preventDefault()
+              setDragging(true)
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+          >
+            <input type="file" accept={ACCEPT} multiple onChange={(e) => onFiles(e.target.files)} hidden />
+            <strong>Soltá los PNG recortados acá</strong>
+            <p>
+              Un PNG por persona, con fondo transparente y cuerpo completo. El nombre sale del archivo
+              (maria-perez.png queda "Maria Perez") y se edita después. Los márgenes vacíos se recortan solos
+              para que los pies toquen el piso.
+            </p>
+          </label>
 
-      <div className="grid">
-        {items.map((c) => (
-          <div className="cell" key={c.id}>
-            <img src={c.thumb_url} alt={c.name ?? 'Personaje sin nombre'} loading="lazy" />
-
-            {busyId === c.id && <div className="cell-busy">Cambiando…</div>}
-
-            <div className="cell-actions">
-              <label className="cell-btn" title="Cambiar PNG">
-                <ReplaceIcon />
-                <input type="file" accept={ACCEPT} hidden onChange={(e) => replace(c, e.target.files)} />
-              </label>
-              <button className="cell-btn danger" title="Borrar" onClick={() => remove(c)}>
-                <TrashIcon />
-              </button>
+          {progress && (
+            <div className="progress" role="status">
+              Subiendo {progress.done} / {progress.total}
             </div>
+          )}
+          {errors.length > 0 && (
+            <ul className="banner err" role="alert">
+              {errors.map((m, i) => (
+                <li key={i}>{m}</li>
+              ))}
+            </ul>
+          )}
+          {loading && items.length === 0 && <div className="progress">Cargando…</div>}
 
-            {editingId === c.id ? (
-              <div className="cell-edit">
-                <input
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  placeholder="Nombre"
-                  aria-label="Nombre"
-                  autoFocus
-                  onBlur={() => commitName(c, draftName)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      commitName(c, draftName)
-                    }
-                    if (e.key === 'Escape') {
-                      e.preventDefault()
-                      setEditingId(null)
-                    }
-                  }}
-                />
-                <span className="cell-hint">Enter guarda | Esc cancela</span>
+          <div className="grid">
+            {items.map((c) => (
+              <div className="cell" key={c.id}>
+                <img src={c.thumb_url} alt={c.name ?? 'Personaje sin nombre'} loading="lazy" />
+
+                {busyId === c.id && <div className="cell-busy">Cambiando…</div>}
+
+                <div className="cell-actions">
+                  <label className="cell-btn" title="Cambiar PNG">
+                    <ReplaceIcon />
+                    <input type="file" accept={ACCEPT} hidden onChange={(e) => replace(c, e.target.files)} />
+                  </label>
+                  <button className="cell-btn danger" title="Borrar" onClick={() => remove(c)}>
+                    <TrashIcon />
+                  </button>
+                </div>
+
+                {editingId === c.id ? (
+                  <div className="cell-edit">
+                    <input
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
+                      placeholder="Nombre"
+                      aria-label="Nombre"
+                      autoFocus
+                      onBlur={() => commitName(c, draftName)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          commitName(c, draftName)
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault()
+                          setEditingId(null)
+                        }
+                      }}
+                    />
+                    <span className="cell-hint">Enter guarda | Esc cancela</span>
+                  </div>
+                ) : (
+                  <button className="cell-name" onClick={() => startEdit(c)} title="Editar nombre">
+                    {c.name ?? 'sin nombre'}
+                  </button>
+                )}
               </div>
-            ) : (
-              <button className="cell-name" onClick={() => startEdit(c)} title="Editar nombre">
-                {c.name ?? 'sin nombre'}
-              </button>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
     </main>
   )
 }

@@ -401,3 +401,125 @@ h1 {
     transition: none !important;
   }
 }
+
+/* ---------- Admin: pestañas ---------- */
+.admin-kicker {
+  margin: 0 0 6px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--candle);
+}
+.admin-tabs {
+  display: flex;
+  gap: 22px;
+}
+.admin-tab {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1;
+  color: var(--bone-faint);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.admin-tab:hover,
+.admin-tab:focus-visible {
+  color: var(--bone-dim);
+}
+.admin-tab.is-active {
+  color: var(--bone);
+  cursor: default;
+}
+
+/* ---------- Admin: musica ---------- */
+.tracklist {
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--bone-faint);
+}
+.track-row {
+  display: grid;
+  grid-template-columns: 26px 28px minmax(0, 1fr) 48px auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bone-faint);
+}
+.track-row.is-previewing .track-num {
+  color: var(--candle);
+}
+.track-num {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--bone-dim);
+  font-variant-numeric: tabular-nums;
+}
+.track-text {
+  display: grid;
+  min-width: 0;
+}
+.track-field {
+  overflow: hidden;
+  padding: 1px 0;
+  border: none;
+  background: none;
+  text-align: left;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+.track-field.is-title {
+  font-size: 15px;
+  color: var(--bone);
+}
+.track-field.is-artist {
+  font-size: 12px;
+  color: var(--bone-dim);
+}
+.track-field.is-empty {
+  font-style: italic;
+  opacity: 0.6;
+}
+.track-field:hover {
+  color: var(--candle);
+}
+.track-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--candle);
+  background: var(--void);
+  font-size: 14px;
+}
+.track-time {
+  font-size: 12px;
+  color: var(--bone-dim);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.track-actions {
+  display: flex;
+  gap: 10px;
+}
+.track-row .cell-btn {
+  color: var(--bone);
+}
+.track-row .cell-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+  border-color: var(--bone-faint);
+}
+
+@media (max-width: 560px) {
+  .track-row {
+    grid-template-columns: 22px 28px minmax(0, 1fr) auto;
+  }
+  .track-time {
+    display: none;
+  }
+}

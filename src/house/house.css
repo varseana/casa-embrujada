@@ -571,3 +571,250 @@
     right: 20px;
   }
 }
+
+/* ---------- Musica: tocadiscos ---------- */
+/* Arriba al centro: el centro exacto taparia la ventana del arco y a los
+   caminantes. En el minijuego baja a la fila del HUD (dardos | disco | salir).
+   .house adelante: gana sobre .bracket (position: relative). */
+.house .music {
+  position: absolute;
+  top: clamp(20px, 5vh, 56px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px 10px 10px;
+  background: rgba(0, 0, 0, 0.6);
+  animation: music-in 0.9s ease 0.4s both;
+}
+.music-deck {
+  flex: none;
+  display: block;
+  width: 84px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.turntable {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.vinyl-disc {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: vinyl-spin 1.8s linear infinite;
+  animation-play-state: paused;
+}
+.music.is-playing .vinyl-disc {
+  animation-play-state: running;
+}
+/* el brazo se aparta en pausa y baja al surco al sonar */
+.tonearm {
+  transform-box: view-box;
+  transform-origin: 108px 12px;
+  transform: rotate(-26deg);
+  transition: transform 0.7s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.music.is-playing .tonearm {
+  transform: rotate(0deg);
+}
+
+.music-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.music-meta {
+  width: 190px;
+  min-width: 0;
+}
+.music-meta .eyebrow {
+  margin: 0 0 4px;
+  font-size: 10px;
+}
+.music-title {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.music-sub {
+  display: flex;
+  gap: 10px;
+  margin: 2px 0 8px;
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--bone-dim);
+}
+.music-sub span:first-child:not(.music-count) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.music-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Barra de progreso: linea fina, avance en ambar, sin redondeos. */
+.music-seek {
+  display: block;
+  width: 100%;
+  height: 12px;
+  margin: 0;
+  background: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.music-seek::-webkit-slider-runnable-track {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    var(--candle) calc(var(--p) * 100%),
+    var(--bone-faint) calc(var(--p) * 100%)
+  );
+}
+.music-seek::-moz-range-track {
+  height: 1px;
+  background: var(--bone-faint);
+}
+.music-seek::-moz-range-progress {
+  height: 1px;
+  background: var(--candle);
+}
+.music-seek::-webkit-slider-thumb {
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border: none;
+  border-radius: 0;
+  background: var(--candle);
+  appearance: none;
+  -webkit-appearance: none;
+}
+.music-seek::-moz-range-thumb {
+  width: 7px;
+  height: 7px;
+  border: none;
+  border-radius: 0;
+  background: var(--candle);
+}
+
+.music-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.music-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--bone-dim);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.music-btn svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+.music-btn.is-main {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--candle);
+  color: var(--candle);
+}
+.music-btn.is-main svg {
+  width: 17px;
+  height: 17px;
+}
+.music-btn:hover,
+.music-btn:focus-visible {
+  color: var(--bone);
+}
+.music-btn.is-main:hover,
+.music-btn.is-main:focus-visible {
+  background: var(--candle);
+  color: #000;
+}
+
+/* Compacto: solo el disco; al apuntarlo (o con foco) se despliega. */
+.music.is-compact {
+  gap: 0;
+  padding: 8px;
+}
+.music.is-compact .music-deck {
+  width: 64px;
+}
+.music.is-compact .music-body {
+  display: none;
+}
+.music.is-compact:hover,
+.music.is-compact:focus-within {
+  gap: 14px;
+  padding: 10px 16px 10px 10px;
+}
+.music.is-compact:hover .music-body,
+.music.is-compact:focus-within .music-body {
+  display: flex;
+}
+.game ~ .music {
+  top: auto;
+  bottom: clamp(16px, 4vh, 40px);
+}
+
+@keyframes vinyl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes music-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Sin espacio entre el titulo y el podio: compacto, y se despliega encima
+   al apuntarlo o tocarlo. */
+@media (max-width: 1200px) {
+  .music:not(:hover):not(:focus-within) {
+    gap: 0;
+    padding: 8px;
+  }
+  .music:not(:hover):not(:focus-within) .music-body {
+    display: none;
+  }
+  .music .music-deck {
+    width: 64px;
+  }
+}
+/* Movil: arriba a la derecha en el hall; en el juego sigue abajo al centro. */
+@media (max-width: 640px) {
+  .lobby ~ .music {
+    left: auto;
+    right: 16px;
+    top: 16px;
+    transform: none;
+  }
+  .music .music-deck {
+    width: 52px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vinyl-disc,
+  .music {
+    animation: none;
+  }
+}

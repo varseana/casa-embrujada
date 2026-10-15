@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { listCharacters } from '../lib/characters'
 import { isValidAlias, normalizeAlias, rememberedAlias, submitScore } from '../lib/scores'
+import { music } from '../house/music'
 import { unlockAudio } from '../house/sound'
 import { BalloonScene, type GameResult, type Hud } from './engine'
 import './game.css'
@@ -125,6 +126,7 @@ export default function BalloonGame({ onExit }: Props) {
     sceneRef.current = scene
     scene.onHud = setHud
     scene.onOver = (r) => {
+      music.hush() // silencio para que se escuche el game over
       setResult(r)
       setPhase('over')
     }
@@ -151,6 +153,7 @@ export default function BalloonGame({ onExit }: Props) {
 
   const play = useCallback(() => {
     unlockAudio() // dentro del gesto: el navegador deja sonar los efectos
+    music.resume()
     setResult(null)
     setPhase('playing')
     sceneRef.current?.newGame()

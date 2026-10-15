@@ -33,3 +33,8 @@ dist-ssr
 # Assets de mockup con marca de agua (no se publican)
 pngtree-*.png
 git-push.txt
+
+# MP3 con copyright: se suben por /admin a Supabase, nunca al repo publico
+canciones/
+*.mp3
+!public/audio/*.mp3

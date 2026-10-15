@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { listCharacters, type Character } from '../lib/characters'
 import { topScores, type ScoreRow } from '../lib/scores'
 import HallArt from './HallArt'
+import { music } from './music'
 import { HallScene } from './walkers'
 
 type Props = {
@@ -28,6 +29,11 @@ export default function Lobby({ onPlay }: Props) {
       scene.stop()
       sceneRef.current = null
     }
+  }, [])
+
+  // al entrar (y al volver del juego) suena la musica, salvo que la hayan pausado
+  useEffect(() => {
+    music.start()
   }, [])
 
   useEffect(() => {

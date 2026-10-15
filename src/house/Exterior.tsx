@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import FacadeArt from './FacadeArt'
 import { DoorBack, DoorFront } from './DoorLeaf'
+import { music } from './music'
 import { KNOCK_TIMES, playCreak, playKnocks, preloadSamples, unlockAudio } from './sound'
 
 // Exterior: la camara se acerca a la puerta, el visitante toca, la puerta
@@ -108,6 +109,7 @@ export default function Exterior({ returning, onEnter }: Props) {
     if (busy.current) return
     busy.current = true
     unlockAudio() // dentro del gesto: desbloquea tambien la musica del lobby
+    music.prime()
     const stage = stageRef.current!
     const door = doorRef.current!
     const reduce = reducedMotion()
@@ -181,6 +183,7 @@ export default function Exterior({ returning, onEnter }: Props) {
     if (busy.current) return
     busy.current = true
     unlockAudio()
+    music.prime()
     onEnter()
   }, [onEnter])
 
