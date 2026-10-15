@@ -61,8 +61,10 @@ function fadeTo(target: number, ms: number, done?: () => void) {
   const from = a.volume
   const t0 = performance.now()
   const tick = (now: number) => {
-    const k = Math.min(1, (now - t0) / ms)
-    a.volume = from + (target - from) * k
+    // la marca del cuadro puede ser ANTERIOR a t0: sin el piso en 0 el volumen
+    // sale negativo, el navegador lanza y la pista queda sonando muda
+    const k = Math.max(0, Math.min(1, (now - t0) / ms))
+    a.volume = Math.max(0, Math.min(1, from + (target - from) * k))
     if (k < 1) fadeRaf = requestAnimationFrame(tick)
     else done?.()
   }
