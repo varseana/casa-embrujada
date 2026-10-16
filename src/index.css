@@ -12,6 +12,7 @@
   --moss: #2f3a2a;
   --font-sans: 'Hanken Grotesk Variable', sans-serif;
   --font-display: 'Fraunces Variable', Georgia, serif;
+  --font-gothic: 'Pirata One', 'Fraunces Variable', serif; /* solo el titulo bajo el logo */
   font-family: var(--font-sans);
   color-scheme: dark;
 }

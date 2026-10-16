@@ -235,38 +235,36 @@
   left: clamp(20px, 5vw, 64px);
   transition: opacity 0.8s ease;
 }
-/* Titulo: logo de VIBE + "'s Haunted House", lado a lado, con la linea de
-   base del texto al pie de las letras del logo (~74% de su alto; el 0.14em
-   es lo que queda bajo la base con line-height 1 en Fraunces). Tamaños
-   medidos para que en el hall no choque con el tocadiscos y en movil entre. */
+/* Titulo: logo de VIBE arriba y "Haunted House" debajo, en Pirata One, con
+   el mismo ancho que el logo. Pirata One mide 5.086em de ancho para "Haunted
+   House" y el logo 1.7927x su alto: 0.338 * alto del logo = 96% de su ancho. */
 .brand {
-  display: flex;
-  align-items: flex-end;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
   margin: 0;
   line-height: 1;
-  font-weight: 600;
-  font-variation-settings:
-    'SOFT' 100,
-    'WONK' 1,
-    'opsz' 144;
 }
 .brand-logo {
   display: block;
-  flex: none;
   width: auto;
   height: var(--logo-h);
 }
 .brand-rest {
-  margin: 0 0 calc(var(--logo-h) * 0.26 - 0.14em) -0.05em;
+  /* sube un poco: la base del logo son gotas y la cola del trazo, con aire de sobra */
+  margin-top: calc(var(--logo-h) * -0.02);
+  font-family: var(--font-gothic);
+  font-size: calc(var(--logo-h) * 0.338);
+  font-weight: 400;
+  letter-spacing: 0.01em;
   white-space: nowrap;
+  color: var(--bone);
 }
 .brand.is-door {
-  --logo-h: clamp(72px, 12vw, 150px);
-  font-size: clamp(24px, 3.8vw, 52px);
+  --logo-h: clamp(84px, 13vw, 168px);
 }
 .brand.is-hall {
-  --logo-h: clamp(56px, 6vw, 88px);
-  font-size: clamp(18px, 2vw, 30px);
+  --logo-h: clamp(60px, 7vw, 104px);
 }
 
 .door-hint {
