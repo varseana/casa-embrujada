@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import FacadeArt from './FacadeArt'
 import { DoorBack, DoorFront } from './DoorLeaf'
+import Brand from './Brand'
 import { music } from './music'
 import { KNOCK_TIMES, playCreak, playKnocks, preloadSamples, unlockAudio } from './sound'
 
@@ -216,7 +217,7 @@ export default function Exterior({ returning, onEnter }: Props) {
 
       <header className="exterior-title">
         <p className="eyebrow">Halloween del equipo</p>
-        <h1>Casa Embrujada</h1>
+        <Brand size="door" />
       </header>
 
       <p className="door-hint" aria-hidden={phase !== 'ready'}>

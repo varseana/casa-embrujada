@@ -142,7 +142,9 @@ function Turntable() {
           fontFamily="var(--font-sans)"
           fontWeight="600"
         >
-          <textPath href="#vinyl-label-path">CASA EMBRUJADA · LADO A · 31 . 10 ·</textPath>
+          <textPath href="#vinyl-label-path" textLength="77" lengthAdjust="spacing">
+            VIBE’S HAUNTED HOUSE · LADO A · 33 ·
+          </textPath>
         </text>
         <path
           d={`M${CX - 4.5} ${CY - 5.5} a6 6 0 1 0 6.5 8.6 a4.8 4.8 0 1 1 -6.5 -8.6 Z`}

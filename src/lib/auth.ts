@@ -39,7 +39,7 @@ async function adminCheck(): Promise<SignInResult> {
     }
     return { ok: false, error: error.message }
   }
-  if ((data?.length ?? 0) === 0) return { ok: false, error: 'Esta cuenta no es admin de la Casa Embrujada.' }
+  if ((data?.length ?? 0) === 0) return { ok: false, error: "Esta cuenta no es admin de VIBE's Haunted House." }
   return { ok: true }
 }
 

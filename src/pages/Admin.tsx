@@ -61,7 +61,7 @@ export default function Admin() {
   }, [])
 
   useEffect(() => {
-    document.title = 'Admin · Casa Embrujada'
+    document.title = "Admin · VIBE's Haunted House"
   }, [])
 
   useEffect(() => {

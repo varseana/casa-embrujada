@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 
 export default function NotFound() {
   useEffect(() => {
-    document.title = 'Pasillo equivocado · Casa Embrujada'
+    document.title = "Pasillo equivocado · VIBE's Haunted House"
   }, [])
   return (
     <main className="placeholder">

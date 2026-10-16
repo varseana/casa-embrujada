@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { listCharacters, type Character } from '../lib/characters'
 import { topScores, type ScoreRow } from '../lib/scores'
+import Brand from './Brand'
 import HallArt from './HallArt'
 import { music } from './music'
 import { HallScene } from './walkers'
@@ -75,7 +76,7 @@ export default function Lobby({ onPlay }: Props) {
 
       <header className="lobby-head">
         <p className="eyebrow">Hall principal</p>
-        <h1>Casa Embrujada</h1>
+        <Brand size="hall" />
         <p className="lobby-count" aria-live="polite">
           {items === null
             ? 'Encendiendo las velas…'

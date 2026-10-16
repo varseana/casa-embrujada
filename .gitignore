@@ -38,3 +38,6 @@ git-push.txt
 canciones/
 *.mp3
 !public/audio/*.mp3
+
+# logo fuente (2 MB): en la web va src/assets/vibe-logo.webp
+1000825724*.png
