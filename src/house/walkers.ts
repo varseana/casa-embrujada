@@ -17,6 +17,24 @@ export type WalkerInput = {
   url: string // miniatura (sprite)
 }
 
+// Persona señalada: lo que necesita la lupa para posarse encima (px de CSS).
+export type FocusInfo = {
+  id: string
+  x: number // centro de los pies
+  y: number // pies
+  fw: number // ancho y alto del sprite en pantalla
+  fh: number
+  face: 1 | -1
+}
+
+// Mascara de alfa reducida por imagen: el hit test respeta la silueta, no el
+// rectangulo (el PNG recortado tiene mucho transparente entre brazos y piernas).
+type AlphaMask = { w: number; h: number; a: Uint8ClampedArray }
+const MASK_H = 96
+const HIT_ALPHA = 60
+// al soltar se espera un poco: evita parpadeo si el cursor roza el borde
+const RELEASE_MS = 140
+
 // Banda del piso donde apoyan los pies, en fraccion del alto del hall.
 const BAND_TOP_F = 0.735
 const BAND_BOTTOM_F = 0.975
@@ -43,6 +61,8 @@ type Walker = {
   cycle: number
   leaving: boolean // va saliendo de escena para dejar entrar a otro
   ttl: number // frames que le quedan en escena (solo si hay cola)
+  held: boolean // señalado: se queda quieto bajo la lupa
+  dim: number // 0..1, se apagan los demas mientras hay alguien señalado
 }
 
 function limit(x: number, y: number, max: number): [number, number] {
@@ -69,6 +89,15 @@ export class HallScene {
   private hallTop = 0
   private hallH = 1000
   private calm = false
+  private masks = new Map<HTMLImageElement, AlphaMask | null>()
+  private pointer: { x: number; y: number } | null = null
+  private heldId: string | null = null
+  private releaseAt = 0
+
+  // cambia la persona señalada (o null): la lupa entra o sale
+  onFocus: ((f: FocusInfo | null) => void) | null = null
+  // cada cuadro mientras hay alguien señalado: la lupa sigue su posicion
+  onFocusFrame: ((f: FocusInfo) => void) | null = null
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -143,6 +172,8 @@ export class HallScene {
       cycle: Math.random() * Math.PI * 2,
       leaving: false,
       ttl: this.lifetime(),
+      held: false,
+      dim: 1,
     }
   }
 
@@ -158,6 +189,7 @@ export class HallScene {
       if (it) wk.img = this.image(it)
       return Boolean(it)
     })
+    if (this.heldId && !byId.has(this.heldId)) this.setHeld(null)
     const onFloor = new Set(this.walkers.map((wk) => wk.id))
     const pending = items.filter((it) => !onFloor.has(it.id))
     // orden aleatorio: cada visita arranca con otra gente en el piso
@@ -187,8 +219,11 @@ export class HallScene {
     if (!this.running) return
     const f = Math.min(Math.max((now - this.last) / 1000, 0.001) * 60, 2)
     this.last = now
+    this.trackPointer(now)
     this.update(f)
     this.draw()
+    const held = this.heldWalker()
+    if (held) this.onFocusFrame?.(this.focusOf(held))
     this.raf = requestAnimationFrame(this.frame)
   }
 
@@ -296,6 +331,20 @@ export class HallScene {
       wk.speedMul += (Math.random() - 0.5) * 0.03 * f
       wk.speedMul = Math.max(0.4, Math.min(1, wk.speedMul))
 
+      const dimTarget = this.heldId && !wk.held ? 0.45 : 1
+      wk.dim += (dimTarget - wk.dim) * Math.min(1, 0.12 * f)
+
+      if (wk.held) {
+        // frena en seco pero sin corte: la lupa se posa sobre alguien quieto
+        const k = Math.pow(0.78, f)
+        wk.vx *= k
+        wk.vy *= k
+        wk.px += wk.vx * f
+        wk.py = Math.max(this.bandTop, Math.min(this.bandBottom, wk.py + wk.vy * f))
+        wk.cycle += Math.hypot(wk.vx, wk.vy) * f * 0.16
+        continue
+      }
+
       if (crowded && !wk.leaving) {
         wk.ttl -= f
         if (wk.ttl <= 0) wk.leaving = true
@@ -373,6 +422,7 @@ export class HallScene {
 
     // sombra de contacto: se achica cuando el cuerpo sube
     const shadowW = fw * 0.42 * (1 - lift * 0.15)
+    ctx.globalAlpha = wk.dim
     ctx.fillStyle = 'rgba(0,0,0,0.55)'
     ctx.beginPath()
     ctx.ellipse(wk.px, wk.py, shadowW, fh * 0.03, 0, 0, Math.PI * 2)
@@ -386,5 +436,116 @@ export class HallScene {
     ctx.scale(sx * (1 + squash), 1 - squash)
     ctx.drawImage(img, -fw / 2, -fh, fw, fh)
     ctx.restore()
+    ctx.globalAlpha = 1
+  }
+
+  // --- Señalar (hover / toque) -----------------------------------------
+  // Mouse: setPointer en cada movimiento (null al salir). El hit test corre
+  // tambien en cada cuadro: alguien puede caminar hasta quedar bajo el cursor.
+  setPointer(x: number | null, y = 0) {
+    this.pointer = x === null ? null : { x, y }
+  }
+
+  // Toque: señala a quien toca; tocar el vacio (o a la misma persona) suelta.
+  tap(x: number, y: number) {
+    const hit = this.hitTest(x, y)
+    this.setHeld(hit && hit.id !== this.heldId ? hit : null)
+  }
+
+  private trackPointer(now: number) {
+    if (!this.pointer) {
+      if (this.heldId && this.releaseAt === 0) this.releaseAt = now + RELEASE_MS
+    } else {
+      const { x, y } = this.pointer
+      const held = this.heldWalker()
+      // la lupa tapa a la persona: mientras siga dentro de su recuadro, sigue señalada
+      if (held && this.inBox(held, x, y)) {
+        this.releaseAt = 0
+        return
+      }
+      const hit = this.hitTest(x, y)
+      if (hit) {
+        this.releaseAt = 0
+        if (hit !== held) this.setHeld(hit)
+        return
+      }
+      if (held && this.releaseAt === 0) this.releaseAt = now + RELEASE_MS
+    }
+    if (this.releaseAt && now >= this.releaseAt) this.setHeld(null)
+  }
+
+  private heldWalker(): Walker | null {
+    return this.heldId ? (this.walkers.find((w) => w.id === this.heldId) ?? null) : null
+  }
+
+  private setHeld(wk: Walker | null) {
+    this.releaseAt = 0
+    if ((wk?.id ?? null) === this.heldId) return
+    for (const w of this.walkers) w.held = false
+    this.heldId = wk?.id ?? null
+    if (wk) {
+      wk.held = true
+      wk.leaving = false // si iba saliendo, se queda
+      wk.ttl = Math.max(wk.ttl, 10 * 60)
+    }
+    this.onFocus?.(wk ? this.focusOf(wk) : null)
+  }
+
+  private focusOf(wk: Walker): FocusInfo {
+    const fh = this.figH(wk.py)
+    const { img } = wk
+    const fw = img.naturalHeight ? fh * (img.naturalWidth / img.naturalHeight) : fh * 0.5
+    return { id: wk.id, x: wk.px, y: wk.py, fw, fh, face: wk.face }
+  }
+
+  private inBox(wk: Walker, x: number, y: number): boolean {
+    const { fw, fh } = this.focusOf(wk)
+    return Math.abs(x - wk.px) <= fw * 0.55 && y <= wk.py + 6 && y >= wk.py - fh * 1.05
+  }
+
+  // De adelante hacia atras: gana quien esta mas cerca de la camara.
+  private hitTest(x: number, y: number): Walker | null {
+    for (let i = this.walkers.length - 1; i >= 0; i--) {
+      const wk = this.walkers[i]
+      const { img } = wk
+      if (!img.complete || img.naturalWidth === 0) continue
+      const fh = this.figH(wk.py)
+      const fw = fh * (img.naturalWidth / img.naturalHeight)
+      // coordenadas en la lamina (0..1); espejada si mira a la izquierda
+      let u = (x - wk.px) / fw + 0.5
+      const v = (y - wk.py) / fh + 1
+      if (u < 0 || u > 1 || v < 0 || v > 1) continue
+      if (wk.face < 0) u = 1 - u
+      const mask = this.mask(img)
+      if (!mask) return wk // sin mascara (CORS): basta el recuadro
+      const mx = Math.min(mask.w - 1, (u * mask.w) | 0)
+      const my = Math.min(mask.h - 1, (v * mask.h) | 0)
+      if (mask.a[my * mask.w + mx] >= HIT_ALPHA) return wk
+    }
+    return null
+  }
+
+  private mask(img: HTMLImageElement): AlphaMask | null {
+    if (this.masks.has(img)) return this.masks.get(img)!
+    let m: AlphaMask | null = null
+    try {
+      const h = MASK_H
+      const w = Math.max(1, Math.round((MASK_H * img.naturalWidth) / img.naturalHeight))
+      const c = document.createElement('canvas')
+      c.width = w
+      c.height = h
+      const cx = c.getContext('2d', { willReadFrequently: true })
+      if (cx) {
+        cx.drawImage(img, 0, 0, w, h)
+        const data = cx.getImageData(0, 0, w, h).data
+        const a = new Uint8ClampedArray(w * h)
+        for (let i = 0; i < a.length; i++) a[i] = data[i * 4 + 3]
+        m = { w, h, a }
+      }
+    } catch {
+      m = null // imagen sin CORS: el canvas queda "tainted"
+    }
+    this.masks.set(img, m)
+    return m
   }
 }

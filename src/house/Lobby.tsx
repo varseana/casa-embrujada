@@ -3,6 +3,7 @@ import { listCharacters, type Character } from '../lib/characters'
 import { topScores, type ScoreRow } from '../lib/scores'
 import Brand from './Brand'
 import HallArt from './HallArt'
+import Loupe, { type LoupeTarget } from './Loupe'
 import { music } from './music'
 import { HallScene } from './walkers'
 
@@ -17,12 +18,32 @@ export default function Lobby({ onPlay }: Props) {
   const sceneRef = useRef<HallScene | null>(null)
   const [items, setItems] = useState<Character[] | null>(null)
   const [podium, setPodium] = useState<ScoreRow[] | null>(null)
+  // lupas en pantalla: la activa y, un momento, la que va saliendo
+  const [loupes, setLoupes] = useState<{ key: number; target: LoupeTarget; leaving: boolean }[]>([])
+  const [pointing, setPointing] = useState(false)
+  const itemsRef = useRef<Character[]>([])
+  const loupeKey = useRef(0)
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const scene = new HallScene(canvas)
     sceneRef.current = scene
+    scene.onFocus = (f) => {
+      setPointing(Boolean(f))
+      setLoupes((prev) => {
+        const out = prev.map((l) => ({ ...l, leaving: true }))
+        const c = f && itemsRef.current.find((x) => x.id === f.id)
+        if (f && c) {
+          out.push({
+            key: ++loupeKey.current,
+            target: { id: c.id, name: c.name, hd: c.public_url, thumb: c.thumb_url, focus: f },
+            leaving: false,
+          })
+        }
+        return out
+      })
+    }
     scene.start()
     window.addEventListener('resize', scene.resize)
     return () => {
@@ -59,6 +80,7 @@ export default function Lobby({ onPlay }: Props) {
   }, [])
 
   useEffect(() => {
+    itemsRef.current = items ?? []
     if (items) sceneRef.current?.setCharacters(items.map((c) => ({ id: c.id, url: c.thumb_url })))
   }, [items])
 
@@ -69,7 +91,29 @@ export default function Lobby({ onPlay }: Props) {
       <div className="hall-stage">
         <HallArt />
       </div>
-      <canvas ref={canvasRef} className="hall-canvas" aria-hidden="true" />
+      <canvas
+        ref={canvasRef}
+        className={`hall-canvas${pointing ? ' is-pointing' : ''}`}
+        aria-hidden="true"
+        onPointerMove={(e) => {
+          if (e.pointerType === 'mouse') sceneRef.current?.setPointer(e.clientX, e.clientY)
+        }}
+        onPointerLeave={(e) => {
+          if (e.pointerType === 'mouse') sceneRef.current?.setPointer(null)
+        }}
+        onPointerDown={(e) => {
+          if (e.pointerType !== 'mouse') sceneRef.current?.tap(e.clientX, e.clientY)
+        }}
+      />
+      {loupes.map((l) => (
+        <Loupe
+          key={l.key}
+          target={l.target}
+          leaving={l.leaving}
+          scene={sceneRef.current}
+          onExited={() => setLoupes((prev) => prev.filter((x) => x.key !== l.key))}
+        />
+      ))}
       {/* el destello del rayo tambien alcanza a los caminantes */}
       <div className="hall-stage hall-storm storm-flash" aria-hidden="true" />
       <div className="grain" />

@@ -837,3 +837,139 @@
     animation: none;
   }
 }
+
+/* ---------- Lupa: persona señalada en el hall ---------- */
+.hall-canvas.is-pointing {
+  cursor: zoom-in;
+}
+.loupe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none; /* el cursor sigue sobre el canvas: no suelta a la persona */
+}
+.loupe-body {
+  position: absolute;
+  inset: 0;
+  animation: loupe-in 0.46s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.loupe.is-leaving .loupe-body {
+  animation: loupe-out 0.3s cubic-bezier(0.5, 0, 0.8, 0.4) both;
+}
+@keyframes loupe-in {
+  from {
+    transform: translateX(var(--from)) rotate(var(--tilt, 0deg));
+  }
+}
+@keyframes loupe-out {
+  to {
+    transform: translateX(var(--from)) rotate(var(--tilt, 0deg));
+  }
+}
+/* entra un poco inclinada y se asienta al llegar */
+.loupe.is-right {
+  --tilt: 10deg;
+}
+.loupe.is-left {
+  --tilt: -10deg;
+}
+
+.loupe-lens {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 42%, #1c120a, #050302 74%);
+}
+/* aro de laton oscuro con un hilo de vela por dentro */
+.loupe-lens::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 7px solid #2a1d10;
+  border-radius: 50%;
+  outline: 1px solid rgba(232, 161, 58, 0.5);
+  outline-offset: -8px;
+}
+.loupe-img {
+  position: absolute;
+  max-width: none;
+  user-select: none;
+}
+.loupe-img.is-hd {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.loupe-img.is-hd.is-ready {
+  opacity: 1;
+}
+/* reflejo fijo del vidrio: un arco fino arriba a la izquierda */
+.loupe-glare {
+  position: absolute;
+  inset: 13%;
+  border-radius: 50%;
+  border-top: 2px solid rgba(233, 226, 208, 0.22);
+  transform: rotate(-38deg);
+}
+
+/* mango: sale del aro hacia el borde por el que entro */
+.loupe-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--r) * 2.3);
+  height: 14px;
+  margin-top: -7px;
+  transform-origin: 0 50%;
+  background: linear-gradient(to right, transparent calc(var(--r) - 2px), #1d140b 0);
+}
+.loupe.is-right .loupe-handle {
+  transform: rotate(38deg);
+}
+.loupe.is-left .loupe-handle {
+  transform: rotate(142deg);
+}
+.loupe-ferrule {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: calc(var(--r) - 2px);
+  width: calc(var(--r) * 0.32);
+  background: #2a1d10;
+  border-right: 1px solid rgba(232, 161, 58, 0.5);
+}
+
+/* .loupe adelante: gana sobre .bracket (position: relative) */
+.loupe .loupe-name {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 14px);
+  margin: 0;
+  padding: 7px 14px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.72);
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--bone);
+}
+.loupe.is-label-below .loupe-name {
+  top: calc(100% + 14px);
+  bottom: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loupe-body,
+  .loupe.is-leaving .loupe-body {
+    animation-name: loupe-fade;
+  }
+  .loupe.is-leaving .loupe-body {
+    animation-direction: reverse;
+  }
+}
+@keyframes loupe-fade {
+  from {
+    opacity: 0;
+  }
+}
