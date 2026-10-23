@@ -636,6 +636,36 @@
 }
 
 /* emblema: placa octogonal + icono grande */
+/* niveles: rombos bajo el emblema; llenos = nivel que tendras al elegirla */
+.draft-level {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  z-index: 2;
+  display: flex;
+  gap: 5px;
+  padding: 3px 6px;
+  transform: translateX(-50%);
+  background: #000;
+}
+.draft-level i {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--candle);
+  transform: rotate(45deg);
+}
+.draft-level i.is-on {
+  background: var(--candle);
+}
+.draft-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .draft-emblem {
   position: relative;
   width: var(--emb);

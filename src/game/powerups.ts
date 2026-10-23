@@ -6,6 +6,7 @@
 // el total a maxScore(rooms), asi que el insert nunca choca con el check.
 
 export const DRAFT_EVERY = 3 // cuartos limpios entre cada eleccion
+export const MAX_SLOTS = 6 // mejoras distintas; llenas, solo se sube de nivel
 
 export type Rarity = 'comun' | 'poco' | 'rara' | 'epica'
 
@@ -70,13 +71,16 @@ export const BASE_STATS: Stats = {
   dark: 0,
 }
 
+export type Upgrade = { text: string; cost?: string; apply: (s: Stats) => void }
+
 export type PowerUp = {
   id: string
   name: string
   rarity: Rarity
   text: string // efecto, corto: entra en la carta
   cost?: string // desventaja
-  max: number // veces que se puede tomar
+  max: number // nivel maximo (tomarla otra vez sube de nivel)
+  up?: Upgrade // que hace cada nivel despues del primero
   excludes?: string[] // no se ofrece si ya tienes alguna de estas
   apply: (s: Stats) => void
   grant?: number // dardos que da al elegirla (nunca pasa el maximo)
@@ -368,7 +372,187 @@ for (const p of POWERUPS)
     if (other && !other.excludes?.includes(p.id)) other.excludes = [...(other.excludes ?? []), p.id]
   }
 
+// Niveles: tomar una mejora que ya tienes la sube de nivel. `up` es lo que
+// suma cada nivel despues del primero; sin `up`, repite el efecto del nivel 1.
+// Los topes de LIMITS y el techo de puntaje siguen mandando.
+const LEVELS: Record<string, { max: number; up?: Upgrade }> = {
+  pulso: { max: 3 },
+  pluma: { max: 3 },
+  telarana: { max: 3 },
+  vela: { max: 3 },
+  racha: { max: 2 },
+  latex: { max: 3 },
+  calma: {
+    max: 3,
+    up: {
+      text: 'Los globos esperan 0.75 s más.',
+      apply: (s) => {
+        s.freezeMs += 750
+      },
+    },
+  },
+  barquero: { max: 3 },
+  aliento: {
+    max: 3,
+    up: {
+      text: 'Con 1 solo dardo, +15% de puntos más.',
+      apply: (s) => {
+        s.lastBreath *= 1.15
+      },
+    },
+  },
+  escudo: {
+    max: 2,
+    up: {
+      text: 'Un fallo más gratis por cuarto.',
+      cost: '-5% de puntos.',
+      apply: (s) => {
+        s.shield += 1
+        s.scoreMul *= 0.95
+      },
+    },
+  },
+  hierro: {
+    max: 2,
+    up: {
+      text: 'Un fallo más por cuarto sin cortar la racha.',
+      apply: (s) => {
+        s.streakGuard += 1
+      },
+    },
+  },
+  iman: {
+    max: 3,
+    up: {
+      text: 'El imán alcanza más lejos.',
+      apply: (s) => {
+        s.magnet += 0.002
+      },
+    },
+  },
+  carcaj: {
+    max: 2,
+    up: {
+      text: '+1 dardo máximo más.',
+      cost: '-4% de puntos.',
+      apply: (s) => {
+        s.maxDarts += 1
+        s.scoreMul *= 0.96
+      },
+    },
+  },
+  cosecha: {
+    max: 3,
+    up: {
+      text: 'Recuperas el dardo con 1 acierto seguido menos.',
+      apply: (s) => {
+        s.harvest = Math.max(4, s.harvest - 1)
+      },
+    },
+  },
+  reloj: {
+    max: 3,
+    up: {
+      text: 'La cámara lenta dura 0.25 s más.',
+      apply: (s) => {
+        s.slowMs += 250
+      },
+    },
+  },
+  puerta: { max: 2 },
+  perforante: {
+    max: 2,
+    up: {
+      text: 'Zona de impacto 5% más grande.',
+      apply: (s) => {
+        s.hitbox *= 1.05
+      },
+    },
+  },
+  onda: {
+    max: 2,
+    up: {
+      text: 'La onda llega más lejos.',
+      apply: (s) => {
+        s.splash = 3.2
+      },
+    },
+  },
+  doble: {
+    max: 2,
+    up: {
+      text: 'La mira tiembla menos.',
+      apply: (s) => {
+        s.jitter = Math.max(0, s.jitter - 0.007)
+      },
+    },
+  },
+  luna: {
+    max: 2,
+    up: {
+      text: 'Zona de impacto 7% más grande.',
+      apply: (s) => {
+        s.hitbox *= 1.07
+      },
+    },
+  },
+  segunda: {
+    max: 2,
+    up: {
+      text: 'Te salva una vez más por partida.',
+      apply: (s) => {
+        s.revive += 1
+      },
+    },
+  },
+  multi: {
+    max: 2,
+    up: {
+      text: 'La mira vibra menos.',
+      apply: (s) => {
+        s.jitter = Math.max(0, s.jitter - 0.008)
+      },
+    },
+  },
+  cadena: {
+    max: 2,
+    up: {
+      text: 'Salta a 2 globos en vez de 1.',
+      cost: 'Globos 5% más rápidos.',
+      apply: (s) => {
+        s.chain = 2
+        s.balloonSpeed *= 1.05
+      },
+    },
+  },
+  pacto: {
+    max: 2,
+    up: {
+      text: '+15% de puntos más.',
+      apply: (s) => {
+        s.scoreMul *= 1.15
+      },
+    },
+  },
+}
+for (const p of POWERUPS) {
+  const l = LEVELS[p.id]
+  if (l) {
+    p.max = l.max
+    p.up = l.up
+  }
+}
+
 export const byId = (id: string) => POWERUPS.find((p) => p.id === id)
+
+export const levelOf = (picks: string[], id: string) => picks.filter((x) => x === id).length
+
+// Lo que dice la carta: el efecto del nivel 1, o el del siguiente nivel si ya la tienes.
+export function cardFace(p: PowerUp, picks: string[]): { text: string; cost?: string; level: number } {
+  const level = levelOf(picks, p.id) + 1
+  if (level === 1 || !p.up) return { text: p.text, cost: p.cost, level }
+  return { text: p.up.text, cost: p.up.cost, level }
+}
 
 // Topes del total: ninguna combinacion rompe el juego.
 const LIMITS: { [K in keyof Stats]?: [number, number] } = {
@@ -386,7 +570,13 @@ const LIMITS: { [K in keyof Stats]?: [number, number] } = {
 
 export function statsFor(picks: string[]): Stats {
   const s = { ...BASE_STATS }
-  for (const id of picks) byId(id)?.apply(s)
+  const seen = new Set<string>()
+  for (const id of picks) {
+    const p = byId(id)
+    if (!p) continue
+    ;(seen.has(id) && p.up ? p.up.apply : p.apply)(s)
+    seen.add(id)
+  }
   for (const k in LIMITS) {
     const key = k as keyof typeof LIMITS
     const [lo, hi] = LIMITS[key]!
@@ -400,10 +590,17 @@ export function rarityWeights(draft: number): Record<Rarity, number> {
   return { comun: 58, poco: 28, rara: 11 + 3 * draft, epica: 3 + 2 * draft }
 }
 
+// Con las ranuras llenas solo se ofrecen niveles de lo que ya tienes.
+export const slotsFull = (picks: string[]) => new Set(picks).size >= MAX_SLOTS
+
 export function eligible(picks: string[]): PowerUp[] {
-  return POWERUPS.filter(
-    (p) => picks.filter((x) => x === p.id).length < p.max && !p.excludes?.some((x) => picks.includes(x)),
-  )
+  const full = slotsFull(picks)
+  return POWERUPS.filter((p) => {
+    const lv = levelOf(picks, p.id)
+    if (lv >= p.max) return false
+    if (lv === 0 && (full || p.excludes?.some((x) => picks.includes(x)))) return false
+    return true
+  })
 }
 
 // 3 cartas distintas: primero rareza por peso (solo entre las que tienen algo

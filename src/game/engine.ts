@@ -26,6 +26,7 @@ import {
   byId,
   DRAFT_EVERY,
   drawCards,
+  levelOf,
   maxScore,
   pointCap,
   statsFor,
@@ -147,6 +148,7 @@ export class BalloonScene {
   private stats: Stats = statsFor([])
   private drafts = 0 // elecciones hechas en la partida
   private revives = 0
+  private maxedShown = false
   private roomShield = 0
   private roomGuard = 0
   private frozenUntil = 0
@@ -280,6 +282,7 @@ export class BalloonScene {
     this.darts = this.stats.maxDarts
     this.drafts = 0
     this.revives = 0
+    this.maxedShown = false
     this.slowUntil = 0
     this.volley = null
     this.stuck = []
@@ -317,7 +320,8 @@ export class BalloonScene {
     const speed = (0.035 + n * 0.016) * (unit / 800) * this.stats.balloonSpeed // px por ms
     this.roomShield = this.stats.shield
     this.roomGuard = this.stats.streakGuard
-    this.frozenUntil = this.stats.freezeMs ? this.time + this.stats.freezeMs + 420 : 0
+    // la espera cuenta desde que termina de inflarse el ultimo globo de la cascada
+    this.frozenUntil = this.stats.freezeMs ? this.time + (count - 1) * 90 + 420 + this.stats.freezeMs : 0
     this.balloons = Array.from({ length: count }, (_, i) => {
       const a = Math.random() * Math.PI * 2
       const sp = speed * rand(0.6, 1.2)
@@ -393,7 +397,7 @@ export class BalloonScene {
     this.addFx('acquire', Math.min(1700, this.walkMs()), {
       x: this.w / 2,
       y: this.h * 0.42,
-      text: p.name,
+      text: levelOf(this.picks, id) > 1 ? `${p.name} · nivel ${levelOf(this.picks, id)}` : p.name,
       rarity: p.rarity,
     })
     this.emitHud()
@@ -694,7 +698,20 @@ export class BalloonScene {
         if (cards.length && this.onDraft) {
           this.state = 'drafting'
           this.onDraft(cards)
-        } else this.walk()
+          return
+        }
+        if ((this.round + 1) % DRAFT_EVERY === 0 && this.onDraft && !this.maxedShown) {
+          // todo al maximo: se avisa una vez y la partida sigue sin cartas
+          this.maxedShown = true
+          this.floats.push({
+            x: this.w / 2,
+            y: this.h * 0.46,
+            text: 'Tus mejoras ya están al máximo',
+            t0: this.time,
+            big: true,
+          })
+        }
+        this.walk()
       },
     }
   }

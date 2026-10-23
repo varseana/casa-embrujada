@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { playCardHover, playCardPick, playCardsIn } from './fx-sound'
 import { PowerIcon } from './icons'
-import { RARITY_LABEL, type PowerUp, type Rarity } from './powerups'
+import { cardFace, MAX_SLOTS, RARITY_LABEL, slotsFull, type PowerUp, type Rarity } from './powerups'
 import { DraftSeal, EmblemPlate } from './seals'
 
 const PICK_DELAY = 300 // ms entre el destello de la carta elegida y onPick
@@ -90,10 +90,14 @@ export default function Draft({
 
   return (
     <div className={`draft${picked ? ' is-picking' : ''}`} role="dialog" aria-label="Elige una mejora">
-      <p className="eyebrow">Elige una mejora</p>
+      <p className="eyebrow">
+        {slotsFull(picks)
+          ? 'Ranuras llenas: sube de nivel'
+          : `Elige una mejora · ${new Set(picks).size}/${MAX_SLOTS}`}
+      </p>
       <div className="draft-cards">
         {cards.map((c, i) => {
-          const owned = picks.filter((id) => id === c.id).length
+          const face = cardFace(c, picks)
           const state = picked === c.id ? ' is-picked' : picked ? ' is-dismissed' : ''
           return (
             <button
@@ -121,20 +125,29 @@ export default function Draft({
                         <span className="draft-key" aria-hidden="true">
                           {i + 1}
                         </span>
-                        <span className="draft-rarity">{RARITY_LABEL[c.rarity]}</span>
+                        <span className="draft-rarity">
+                          {RARITY_LABEL[c.rarity]}
+                          {c.max > 1 && (
+                            <span className="draft-sr">{`, nivel ${face.level} de ${c.max}`}</span>
+                          )}
+                        </span>
                       </span>
                       <span className="draft-emblem" aria-hidden="true">
                         <EmblemPlate />
+                        {c.max > 1 && (
+                          <span className="draft-level">
+                            {Array.from({ length: c.max }, (_, k) => (
+                              <i key={k} className={k < face.level ? 'is-on' : undefined} />
+                            ))}
+                          </span>
+                        )}
                         <span className="draft-icon-slot">
                           <PowerIcon id={c.id} className="draft-icon" />
                         </span>
                       </span>
-                      <span className="draft-name">
-                        {c.name}
-                        {owned > 0 && <span className="draft-owned"> x{owned + 1}</span>}
-                      </span>
-                      <span className="draft-text">{c.text}</span>
-                      {c.cost && <span className="draft-cost">{c.cost}</span>}
+                      <span className="draft-name">{c.name}</span>
+                      <span className="draft-text">{face.text}</span>
+                      {face.cost && <span className="draft-cost">{face.cost}</span>}
                       <span className="card-sheen" aria-hidden="true" />
                     </span>
                     <DraftSeal rarity={c.rarity} />

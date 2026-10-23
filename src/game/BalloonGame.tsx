@@ -133,7 +133,7 @@ function Powers({ picks }: { picks: string[] }) {
               <PowerIcon id={id} />
             </span>
             <span className="hud-power-name">{p?.name}</span>
-            {n > 1 && <span className="hud-power-n">x{n}</span>}
+            {n > 1 && <span className="hud-power-n">nv {n}</span>}
           </li>
         )
       })}
