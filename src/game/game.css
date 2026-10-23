@@ -217,7 +217,9 @@
   text-overflow: ellipsis;
 }
 
-/* Cartas de mejora: 1 de 3. La rareza va en el texto y el tono del marco. */
+/* Cartas de mejora: 1 de 3. Cada carta es una nota negra y la rareza la dice
+   el sello (src/game/seals.tsx): comun = marca de tinta, poco = sello hueso,
+   rara = sello vela grabado, epica = sello ember sobre el borde con cinta. */
 .draft {
   position: absolute;
   inset: 0;
@@ -235,20 +237,38 @@
 .draft > :last-child {
   margin-bottom: auto;
 }
+.draft .eyebrow {
+  margin-bottom: 30px; /* aire para el sello epico que asoma sobre el borde */
+}
 .draft-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   width: min(820px, calc(100vw - 40px));
 }
+
+/* la nota: el sello vive en una banda de cabecera de alto fijo (igual en las
+   4 rarezas, asi los nombres quedan alineados) y el nombre usa todo el ancho */
 .game .draft-card {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  --frame: rgba(233, 226, 208, 0.16);
+  --frame-hi: rgba(233, 226, 208, 0.42);
+  --seal-w: 34px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: var(--band) auto auto 1fr;
+  grid-template-areas:
+    'top seal'
+    'name name'
+    'text text'
+    'cost cost';
+  --band: 46px;
+  column-gap: 14px;
+  row-gap: 10px;
+  align-items: start;
   min-width: 0;
   min-height: 210px;
-  border: 1px solid var(--bone-faint);
-  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid var(--frame);
+  background: #000;
   padding: 20px 20px 22px;
   text-align: left;
   color: var(--bone);
@@ -257,29 +277,56 @@
 }
 .draft-card:hover,
 .draft-card:focus-visible {
-  border-color: var(--candle);
+  border-color: var(--frame-hi);
   outline: none;
 }
 .draft-card.is-poco {
-  border-color: rgba(233, 226, 208, 0.32);
+  --frame: rgba(233, 226, 208, 0.3);
+  --frame-hi: rgba(233, 226, 208, 0.62);
+  --seal-w: 42px;
 }
 .draft-card.is-rara {
-  border-color: rgba(232, 161, 58, 0.55);
+  --frame: rgba(232, 161, 58, 0.42);
+  --frame-hi: rgba(232, 161, 58, 0.85);
+  --seal-w: 48px;
 }
 .draft-card.is-epica {
-  border-color: var(--ember);
+  --frame: rgba(184, 67, 43, 0.85);
+  --frame-hi: #d9654a;
+  --seal-w: 70px;
 }
+
+/* cabecera: tecla (cuadrito) + rareza, como ficha de museo */
 .draft-top {
+  grid-area: top;
+  align-self: center;
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.draft-key {
+  order: -1;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(233, 226, 208, 0.2);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--bone-dim);
+  font-variant-numeric: tabular-nums;
 }
 .draft-rarity {
+  min-width: 0;
   font-size: 11px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--bone-dim);
+}
+.draft-card.is-poco .draft-rarity {
+  color: var(--bone);
 }
 .draft-card.is-rara .draft-rarity {
   color: var(--candle);
@@ -287,32 +334,168 @@
 .draft-card.is-epica .draft-rarity {
   color: #d9654a;
 }
-.draft-key {
-  font-size: 12px;
-  color: var(--bone-faint);
-  font-variant-numeric: tabular-nums;
-}
+
 .draft-name {
+  grid-area: name;
+  min-width: 0;
   font-family: var(--font-display);
   font-size: clamp(20px, 2vw, 24px);
+  font-weight: 500;
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1;
   line-height: 1.1;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+.draft-card.is-epica .draft-name {
+  font-weight: 600;
 }
 .draft-owned {
   font-size: 0.7em;
   color: var(--candle);
+  white-space: nowrap;
 }
 .draft-text,
 .draft-cost {
+  min-width: 0;
   font-size: 14px;
   line-height: 1.45;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+.draft-text {
+  grid-area: text;
 }
 .draft-cost {
-  margin-top: auto; /* la desventaja siempre abajo, alineada entre cartas */
+  grid-area: cost;
+  align-self: end; /* la desventaja siempre abajo, alineada entre cartas */
   padding-top: 10px;
   border-top: 1px solid var(--bone-faint);
   color: #d9654a;
+}
+
+/* ---------- el sello ---------- */
+.draft-seal {
+  grid-area: seal;
+  justify-self: end;
+  width: var(--seal-w);
+  margin: -6px -6px 0 0; /* pegado a la esquina, sin salir de su columna */
+  pointer-events: none;
+  line-height: 0;
+}
+.draft-seal svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+/* epica: el sello cierra la nota sobre el borde de arriba y cuelga la cinta */
+.draft-card.is-epica .draft-seal {
+  margin: calc(-20px - var(--seal-w) * 0.5) -4px 0 0;
+}
+
+/* comun: marca de tinta hueso, sin lacre */
+.stamp-ring {
+  fill: none;
+  stroke: rgba(233, 226, 208, 0.5);
+  stroke-width: 4;
+  stroke-dasharray: 31 2.5 19 4 27 1.5 15;
+}
+.stamp-mark {
+  fill: rgba(233, 226, 208, 0.5);
+}
+
+/* lacre */
+.seal-wax {
+  fill: var(--wax);
+}
+/* cada sello cae un poco torcido */
+.is-poco .draft-seal svg {
+  transform: rotate(-7deg);
+}
+.is-rara .draft-seal svg {
+  transform: rotate(5deg);
+}
+.is-epica .draft-seal svg {
+  transform: rotate(-4deg);
+  transform-origin: 50% 33%;
+}
+.is-poco .draft-seal {
+  --wax: #e9e2d0;
+  --deep: rgba(0, 0, 0, 0.3);
+}
+.is-rara .draft-seal {
+  --wax: #e8a13a;
+  --deep: rgba(0, 0, 0, 0.4);
+  --lit: rgba(233, 226, 208, 0.6);
+}
+.is-epica .draft-seal {
+  --wax: #b8432b;
+  --deep: rgba(0, 0, 0, 0.45);
+  --lit: rgba(232, 161, 58, 0.55);
+}
+.seal-pit {
+  fill: rgba(0, 0, 0, 0.08);
+}
+.seal-ring {
+  fill: none;
+  stroke: var(--deep);
+  stroke-width: 2.4;
+}
+.seal-ring-hi {
+  fill: none;
+  stroke: var(--lit);
+  stroke-width: 1.2;
+}
+.seal-engrave {
+  fill: var(--deep);
+}
+.seal-emboss {
+  fill: var(--lit);
+}
+.seal-hi,
+.seal-hi path {
+  fill: none;
+  stroke: var(--lit);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.seal-ribbon {
+  fill: #b8432b;
+  opacity: 0.62;
+}
+.seal-crease {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 1.4;
+}
+
+/* el unico movimiento: el brillo del lacre epico titila como vela cerca */
+@media (prefers-reduced-motion: no-preference) {
+  .is-epica .seal-hi {
+    animation: wax-warm 5.2s ease-in-out infinite;
+  }
+}
+@keyframes wax-warm {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  22% {
+    opacity: 0.9;
+  }
+  34% {
+    opacity: 0.6;
+  }
+  51% {
+    opacity: 1;
+  }
+  68% {
+    opacity: 0.55;
+  }
+  83% {
+    opacity: 0.85;
+  }
 }
 
 @media (max-width: 720px) {
@@ -322,17 +505,84 @@
   .draft > :first-child {
     margin-top: 0;
   }
+  .draft .eyebrow {
+    margin-bottom: 14px;
+  }
   .draft-cards {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }
+  /* compacta: el sello ocupa su columna a lo alto de cabecera, nombre y texto */
   .game .draft-card {
+    --seal-w: 28px;
+    --band: auto;
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas:
+      'top seal'
+      'name seal'
+      'text seal'
+      'cost cost';
     min-height: 0;
     padding: 14px 16px 16px;
-    gap: 6px;
+    row-gap: 6px;
+  }
+  .draft-card.is-poco {
+    --seal-w: 32px;
+  }
+  .draft-card.is-rara {
+    --seal-w: 38px;
+  }
+  .draft-card.is-epica {
+    --seal-w: 42px;
+  }
+  .draft-seal,
+  .draft-card.is-epica .draft-seal {
+    margin: -2px -2px 0 0;
+  }
+  .draft-text {
+    align-self: start;
   }
   .draft-cost {
     margin-top: 4px;
     padding-top: 6px;
+  }
+}
+
+/* alto chico con ancho de escritorio (celular acostado): entran las 3 sin scroll */
+@media (max-height: 480px) and (min-width: 721px) {
+  .draft {
+    padding: 44px 20px 60px;
+  }
+  .draft .eyebrow {
+    margin-bottom: 22px;
+  }
+  .game .draft-card {
+    --band: 34px;
+    min-height: 0;
+    padding: 14px 16px 16px;
+    row-gap: 6px;
+  }
+  .draft-card.is-comun {
+    --seal-w: 28px;
+  }
+  .draft-card.is-poco {
+    --seal-w: 32px;
+  }
+  .draft-card.is-rara {
+    --seal-w: 36px;
+  }
+  .draft-card.is-epica {
+    --seal-w: 48px;
+  }
+  .draft-card.is-epica .draft-seal {
+    margin-top: calc(-14px - var(--seal-w) * 0.5);
+  }
+  .draft-name {
+    font-size: 19px;
+  }
+  .draft-text,
+  .draft-cost {
+    font-size: 13px;
+    line-height: 1.4;
   }
 }
