@@ -199,27 +199,80 @@
   display: block;
 }
 
-/* Mejoras activas: bajo el nombre del cuarto, una por linea, sin salirse. */
+/* Mejoras activas: bajo el nombre del cuarto, una fila por mejora (icono +
+   nombre + xN), maximo 8 y despues "+N". El icono toma el color de la rareza. */
 .hud-powers {
   margin: 10px 0 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 3px;
+  gap: 4px;
   max-width: min(240px, 42vw);
   font-size: 12px;
-  line-height: 1.35;
+  line-height: 16px;
   color: var(--bone-dim);
 }
 .hud-powers li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, max-content) auto;
+  justify-content: start;
+  align-items: center;
+  column-gap: 7px;
+  min-width: 0;
+}
+.hud-power-glyph {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--bone-dim);
+  --icon-accent: var(--bone);
+}
+.hud-power-glyph > svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+/* sin icono todavia: un rombo chico del color de la rareza */
+.hud-power-glyph:empty::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border: 1px solid currentColor;
+  transform: rotate(45deg);
+}
+.hud-powers .is-poco .hud-power-glyph {
+  color: var(--bone);
+}
+.hud-powers .is-rara .hud-power-glyph {
+  color: var(--candle);
+  --icon-accent: #f6d08a;
+}
+.hud-powers .is-epica .hud-power-glyph {
+  color: #d9654a;
+  --icon-accent: var(--candle);
+}
+.hud-power-name {
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.hud-power-n {
+  color: var(--candle);
+  font-variant-numeric: tabular-nums;
+}
+.hud-powers .hud-power-more {
+  display: block;
+  padding-left: 23px;
+  color: var(--bone-dim);
+}
 
-/* Cartas de mejora: 1 de 3. Cada carta es una nota negra y la rareza la dice
-   el sello (src/game/seals.tsx): comun = marca de tinta, poco = sello hueso,
-   rara = sello vela grabado, epica = sello ember sobre el borde con cinta. */
+/* Cartas de mejora: 1 de 3. Naipe en retrato con marco biselado de esquinas
+   chaflanadas. La rareza sube el material del marco: comun = hierro mate,
+   poco = hueso con un brillo leve, rara = oro vela con foil tornasol,
+   epica = brasa y oro con foil tornasol completo. El foil sigue al puntero
+   (--mx/--my desde Draft.tsx). El sello de lacre cierra el marco de abajo. */
 .draft {
   position: absolute;
   inset: 0;
@@ -228,7 +281,8 @@
   align-items: center;
   padding: 72px 20px 96px; /* libre el HUD y el tocadiscos de abajo */
   overflow-y: auto;
-  background: rgba(0, 0, 0, 0.6);
+  overflow-x: hidden;
+  background: rgba(0, 0, 0, 0.66);
 }
 /* centrado con margenes: si no entra en alto, scrollea sin cortar arriba */
 .draft > :first-child {
@@ -238,81 +292,333 @@
   margin-bottom: auto;
 }
 .draft .eyebrow {
-  margin-bottom: 30px; /* aire para el sello epico que asoma sobre el borde */
+  margin-bottom: 22px;
 }
 .draft-cards {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  width: min(820px, calc(100vw - 40px));
+  --gap: clamp(14px, 2vw, 26px);
+  gap: var(--gap);
+  width: min(900px, calc(100vw - 40px));
+  container-type: inline-size;
+  padding-bottom: 40px; /* la cinta del sello epico cuelga bajo la carta */
 }
 
-/* la nota: el sello vive en una banda de cabecera de alto fijo (igual en las
-   4 rarezas, asi los nombres quedan alineados) y el nombre usa todo el ancho */
-.game .draft-card {
-  --frame: rgba(233, 226, 208, 0.16);
-  --frame-hi: rgba(233, 226, 208, 0.42);
-  --seal-w: 34px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: var(--band) auto auto 1fr;
-  grid-template-areas:
-    'top seal'
-    'name name'
-    'text text'
-    'cost cost';
-  --band: 46px;
-  column-gap: 14px;
-  row-gap: 10px;
-  align-items: start;
-  min-width: 0;
-  min-height: 210px;
-  border: 1px solid var(--frame);
-  background: #000;
-  padding: 20px 20px 22px;
-  text-align: left;
-  color: var(--bone);
-  cursor: pointer;
-  transition: border-color 0.2s ease;
+/* chaflan: --c es el corte de la esquina de cada capa */
+.draft-card .card-frame,
+.draft-card .card-frame::before,
+.draft-card .card-frame::after,
+.draft-card .card-foil,
+.draft-card .card-inner,
+.draft-card .card-back,
+.draft-card .card-back::before {
+  clip-path: polygon(
+    var(--c) 0,
+    calc(100% - var(--c)) 0,
+    100% var(--c),
+    100% calc(100% - var(--c)),
+    calc(100% - var(--c)) 100%,
+    var(--c) 100%,
+    0 calc(100% - var(--c)),
+    0 var(--c)
+  );
 }
-.draft-card:hover,
-.draft-card:focus-visible {
-  border-color: var(--frame-hi);
+
+.game .draft-card {
+  /* geometria */
+  --ch: 18px; /* chaflan exterior */
+  --fw: 9px; /* grosor del marco */
+  --emb: 104px; /* placa del emblema */
+  --icon: 64px; /* icono dentro de la placa */
+  --seal-w: 44px;
+  /* material (comun: hierro mate) */
+  --m1: #4a4540;
+  --m2: #24211e;
+  --m3: #3a3631;
+  --m4: #121110;
+  --groove: #0a0908;
+  --tint: rgba(233, 226, 208, 0.05);
+  --accent: rgba(233, 226, 208, 0.6);
+  --plate-line: rgba(233, 226, 208, 0.34);
+  --plate-face: #14120f;
+  --icon-ink: rgba(233, 226, 208, 0.82);
+  --icon-accent: var(--bone);
+  --foil-o: 0;
+  --sheen-o: 0;
+  /* puntero */
+  --mx: 30%;
+  --my: 20%;
+  --rx: 0deg;
+  --ry: 0deg;
+  --glare: 0;
+
+  position: relative;
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--bone);
+  text-align: center;
+  cursor: pointer;
+  /* retrato 5:7 como piso; si el texto pide mas, crece */
+  min-height: calc((100cqw - var(--gap) * 2) / 3 * 1.4);
+  perspective: 1000px;
   outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.26s ease;
 }
 .draft-card.is-poco {
-  --frame: rgba(233, 226, 208, 0.3);
-  --frame-hi: rgba(233, 226, 208, 0.62);
-  --seal-w: 42px;
+  --m1: #ece6d6;
+  --m2: #8f897d;
+  --m3: #d4cdbb;
+  --m4: #5b574f;
+  --groove: #2a2723;
+  --tint: rgba(233, 226, 208, 0.08);
+  --accent: var(--bone);
+  --plate-line: rgba(233, 226, 208, 0.6);
+  --plate-face: #181613;
+  --icon-ink: var(--bone);
+  --foil-o: 0.22;
+  --sheen-o: 0;
 }
 .draft-card.is-rara {
-  --frame: rgba(232, 161, 58, 0.42);
-  --frame-hi: rgba(232, 161, 58, 0.85);
-  --seal-w: 48px;
+  --m1: #f8d690;
+  --m2: #a86a1e;
+  --m3: #f0bb5c;
+  --m4: #6a3f10;
+  --groove: #2c1a06;
+  --tint: rgba(232, 161, 58, 0.13);
+  --accent: var(--candle);
+  --plate-line: rgba(232, 161, 58, 0.8);
+  --plate-face: #1c1309;
+  --icon-ink: #f3c879;
+  --icon-accent: var(--bone);
+  --foil-o: 0.6;
+  --sheen-o: 0.05;
 }
 .draft-card.is-epica {
-  --frame: rgba(184, 67, 43, 0.85);
-  --frame-hi: #d9654a;
-  --seal-w: 70px;
+  --m1: #f6c56c;
+  --m2: #8f2f1c;
+  --m3: #e0703f;
+  --m4: #4e170c;
+  --groove: #1e0904;
+  --tint: rgba(184, 67, 43, 0.22);
+  --accent: #e8805f;
+  --plate-line: #e8a13a;
+  --plate-face: #1f0b06;
+  --icon-ink: #f2b65a;
+  --icon-accent: #e9e2d0;
+  --foil-o: 0.72;
+  --sheen-o: 0.09;
+  --seal-w: 54px;
 }
 
-/* cabecera: tecla (cuadrito) + rareza, como ficha de museo */
-.draft-top {
-  grid-area: top;
-  align-self: center;
+/* capas: tilt (puntero) > flip (reparto) > caras */
+.card-tilt {
+  display: block;
+  height: 100%;
+  perspective: 900px;
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform 0.18s ease-out;
+}
+.card-flip {
+  position: relative;
+  display: block;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+.card-front {
+  position: relative;
   display: flex;
+  height: 100%;
+  padding: var(--fw);
+  backface-visibility: hidden;
+}
+.card-back {
+  --c: var(--ch);
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  backface-visibility: hidden;
+  background: linear-gradient(155deg, #4a4540 0%, #1c1a17 30%, #34302b 55%, #0f0e0c 100%);
+}
+/* dorso: panel negro con rombos de hilo hueso */
+.card-back::before {
+  --c: calc(var(--ch) - var(--fw) * 0.586);
+  content: '';
+  position: absolute;
+  inset: var(--fw);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 13px, rgba(233, 226, 208, 0.08) 13px 14px),
+    repeating-linear-gradient(-45deg, transparent 0 13px, rgba(233, 226, 208, 0.08) 13px 14px), #070605;
+}
+.card-back-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 1px solid rgba(232, 161, 58, 0.55);
+  background: #070605;
+  transform: rotate(45deg);
+}
+
+/* marco: metal + canal oscuro + filo, tres capas chaflanadas */
+.card-frame {
+  --c: var(--ch);
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    155deg,
+    var(--m1) 0%,
+    var(--m2) 24%,
+    var(--m3) 50%,
+    var(--m2) 74%,
+    var(--m4) 100%
+  );
+  transition: filter 0.2s ease;
+}
+.card-frame::before {
+  --c: calc(var(--ch) - 2px * 0.586);
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: linear-gradient(155deg, var(--groove), var(--m4) 60%, var(--groove));
+}
+.card-frame::after {
+  --c: calc(var(--ch) - 3.5px * 0.586);
+  content: '';
+  position: absolute;
+  inset: 3.5px;
+  background: linear-gradient(
+    -25deg,
+    var(--m1) 0%,
+    var(--m2) 28%,
+    var(--m3) 52%,
+    var(--m4) 78%,
+    var(--m1) 100%
+  );
+  opacity: 0.92;
+}
+
+/* foil tornasol: solo se ve en el marco (el panel lo tapa al centro) */
+.card-foil {
+  --c: var(--ch);
+  position: absolute;
+  inset: 0;
+  opacity: var(--foil-o);
+  mix-blend-mode: color-dodge;
+  background: repeating-linear-gradient(
+    118deg,
+    #e8a13a 0%,
+    #d9654a 7%,
+    #e9e2d0 14%,
+    #6fb7a3 21%,
+    #7c9fd0 28%,
+    #a7a3c9 33%,
+    #e8a13a 40%
+  );
+  background-size: 260% 260%;
+  background-position: var(--mx) var(--my);
+  transition: opacity 0.2s ease;
+}
+/* poco comun: solo un brillo hueso, sin cambio de tono */
+.draft-card.is-poco .card-foil {
+  mix-blend-mode: overlay;
+  background: linear-gradient(118deg, transparent 30%, rgba(255, 252, 240, 0.9) 48%, transparent 66%);
+  background-size: 260% 260%;
+  background-position: var(--mx) var(--my);
+}
+/* reflejo que sigue al puntero */
+.card-foil::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: var(--glare);
+  background: linear-gradient(
+    118deg,
+    transparent calc(var(--mx) - 22%),
+    rgba(255, 246, 225, 0.7) var(--mx),
+    transparent calc(var(--mx) + 22%)
+  );
+  mix-blend-mode: overlay;
+  transition: opacity 0.2s ease;
+}
+/* barrido del reparto (solo rara y epica lo animan) */
+.card-foil::after {
+  content: '';
+  position: absolute;
+  inset: 0 -60%;
+  opacity: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 244, 220, 0.95) 50%, transparent 62%);
+  transform: translateX(-60%);
+}
+
+/* panel interior */
+.card-inner {
+  --c: calc(var(--ch) - var(--fw) * 0.586);
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto 1fr;
+  justify-items: center;
+  align-content: start;
+  padding: 12px 16px 30px;
+  /* base opaca: el foil y el marco no se transparentan al panel */
+  background:
+    linear-gradient(180deg, var(--tint) 0%, transparent 46%), linear-gradient(180deg, #0c0a08, #040303);
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 245, 225, 0.12),
+    inset 0 0 26px rgba(0, 0, 0, 0.85);
+}
+/* filete fino a 6 px del marco; las esquinas quedan abiertas por el chaflan */
+.card-inner::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  pointer-events: none;
+}
+.card-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--sheen-o);
+  mix-blend-mode: color-dodge;
+  background: repeating-linear-gradient(
+    118deg,
+    #e8a13a 0%,
+    #6fb7a3 9%,
+    #7c9fd0 16%,
+    #d9654a 24%,
+    #e8a13a 32%
+  );
+  background-size: 300% 300%;
+  background-position: var(--mx) var(--my);
+}
+
+/* cabecera: tecla (cuadrito) a la izquierda, rareza al centro */
+.draft-top {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 18px;
   align-items: center;
-  gap: 10px;
+  column-gap: 8px;
+  width: 100%;
   min-width: 0;
 }
 .draft-key {
-  order: -1;
-  flex: none;
   width: 18px;
   height: 18px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(233, 226, 208, 0.2);
+  border: 1px solid rgba(233, 226, 208, 0.22);
   font-size: 11px;
   line-height: 1;
   color: var(--bone-dim);
@@ -320,26 +626,102 @@
 }
 .draft-rarity {
   min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-size: 11px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--bone-dim);
+  color: var(--accent);
 }
-.draft-card.is-poco .draft-rarity {
-  color: var(--bone);
+
+/* emblema: placa octogonal + icono grande */
+.draft-emblem {
+  position: relative;
+  width: var(--emb);
+  height: var(--emb);
+  margin: 10px 0 12px;
+  display: grid;
+  place-items: center;
 }
-.draft-card.is-rara .draft-rarity {
-  color: var(--candle);
+.draft-plate {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
-.draft-card.is-epica .draft-rarity {
-  color: #d9654a;
+.plate-edge {
+  fill: none;
+  stroke: var(--plate-line);
+  stroke-width: 1.4;
+}
+.plate-face {
+  fill: var(--plate-face);
+  stroke: color-mix(in srgb, var(--plate-line) 45%, transparent);
+  stroke-width: 0.8;
+}
+.plate-ticks {
+  fill: none;
+  stroke: color-mix(in srgb, var(--plate-line) 70%, transparent);
+  stroke-width: 1;
+}
+.plate-ring {
+  fill: none;
+  stroke: var(--plate-line);
+  stroke-width: 1.2;
+}
+.plate-ring-in {
+  fill: color-mix(in srgb, var(--tint) 100%, transparent);
+  stroke: color-mix(in srgb, var(--plate-line) 35%, transparent);
+  stroke-width: 0.6;
+}
+.plate-studs {
+  fill: var(--plate-line);
+}
+.draft-icon-slot {
+  position: relative;
+  width: var(--icon);
+  height: var(--icon);
+  display: grid;
+  place-items: center;
+  color: var(--icon-ink);
+}
+.draft-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+/* mientras no hay icono: un rombo doble de la rareza */
+.draft-icon-slot:empty::before,
+.draft-icon-slot:empty::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border: 1px solid var(--plate-line);
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.draft-icon-slot:empty::before {
+  width: 34%;
+  height: 34%;
+}
+.draft-icon-slot:empty::after {
+  width: 14%;
+  height: 14%;
+  background: var(--plate-line);
 }
 
 .draft-name {
-  grid-area: name;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
+  max-width: 100%;
+  min-height: 2.2em; /* dos lineas: los nombres quedan alineados entre cartas */
   font-family: var(--font-display);
-  font-size: clamp(20px, 2vw, 24px);
+  font-size: clamp(19px, 1.9vw, 23px);
   font-weight: 500;
   font-variation-settings:
     'SOFT' 100,
@@ -348,10 +730,12 @@
   overflow-wrap: break-word;
   hyphens: manual;
 }
+.draft-card.is-rara .draft-name,
 .draft-card.is-epica .draft-name {
   font-weight: 600;
 }
 .draft-owned {
+  margin-left: 0.3em;
   font-size: 0.7em;
   color: var(--candle);
   white-space: nowrap;
@@ -359,27 +743,44 @@
 .draft-text,
 .draft-cost {
   min-width: 0;
+  max-width: 100%;
   font-size: 14px;
   line-height: 1.45;
   overflow-wrap: break-word;
 }
 .draft-text {
-  grid-area: text;
+  margin-top: 10px;
+  color: rgba(233, 226, 208, 0.86);
 }
 .draft-cost {
-  grid-area: cost;
   align-self: end; /* la desventaja siempre abajo, alineada entre cartas */
-  padding-top: 10px;
+  width: 100%;
+  margin-top: 12px;
+  padding-top: 9px;
   border-top: 1px solid var(--bone-faint);
   color: #d9654a;
 }
 
-/* ---------- el sello ---------- */
+/* hover / foco: el marco se aviva y el reflejo aparece */
+.draft-card:hover .card-frame,
+.draft-card:focus-visible .card-frame {
+  filter: brightness(1.18) saturate(1.1);
+}
+.draft-card:focus-visible .draft-key {
+  border-color: var(--accent);
+  color: var(--bone);
+}
+.draft-card:focus-visible {
+  --glare: 0.6;
+}
+
+/* ---------- el sello: cierra el marco de abajo ---------- */
 .draft-seal {
-  grid-area: seal;
-  justify-self: end;
+  position: absolute;
+  left: 50%;
+  top: calc(100% - var(--seal-w) * 0.5);
   width: var(--seal-w);
-  margin: -6px -6px 0 0; /* pegado a la esquina, sin salir de su columna */
+  margin-left: calc(var(--seal-w) * -0.5);
   pointer-events: none;
   line-height: 0;
 }
@@ -389,20 +790,26 @@
   height: auto;
   overflow: visible;
 }
-/* epica: el sello cierra la nota sobre el borde de arriba y cuelga la cinta */
-.draft-card.is-epica .draft-seal {
-  margin: calc(-20px - var(--seal-w) * 0.5) -4px 0 0;
-}
 
-/* comun: marca de tinta hueso, sin lacre */
+/* comun: marca de tinta hueso sobre una pastilla negra (el hierro no la deja leer) */
+.is-comun .draft-seal::before {
+  content: '';
+  position: absolute;
+  inset: 20%;
+  background: #0a0908;
+  transform: rotate(45deg);
+}
+.is-comun .draft-seal svg {
+  position: relative;
+}
 .stamp-ring {
   fill: none;
-  stroke: rgba(233, 226, 208, 0.5);
+  stroke: rgba(233, 226, 208, 0.6);
   stroke-width: 4;
   stroke-dasharray: 31 2.5 19 4 27 1.5 15;
 }
 .stamp-mark {
-  fill: rgba(233, 226, 208, 0.5);
+  fill: rgba(233, 226, 208, 0.6);
 }
 
 /* lacre */
@@ -461,8 +868,7 @@
   stroke-linecap: round;
 }
 .seal-ribbon {
-  fill: #b8432b;
-  opacity: 0.62;
+  fill: #8f2f1c;
 }
 .seal-crease {
   fill: none;
@@ -470,10 +876,109 @@
   stroke-width: 1.4;
 }
 
-/* el unico movimiento: el brillo del lacre epico titila como vela cerca */
+/* ---------- movimiento ---------- */
 @media (prefers-reduced-motion: no-preference) {
-  .is-epica .seal-hi {
+  /* reparto: entran escalonadas, dorso primero y se dan vuelta */
+  .card-tilt {
+    animation: card-in 0.2s ease-out both;
+    animation-delay: calc(var(--i) * 110ms);
+  }
+  .card-flip {
+    animation: card-flip 0.5s cubic-bezier(0.25, 0.75, 0.3, 1) both;
+    animation-delay: calc(var(--i) * 110ms);
+  }
+  .draft-card.is-epica .card-flip {
+    animation-name: card-flip-epica;
+    animation-duration: 0.64s;
+  }
+  .draft-card.is-rara .card-foil::after,
+  .draft-card.is-epica .card-foil::after {
+    animation: foil-sweep 0.7s ease-in-out both;
+    animation-delay: calc(var(--i) * 110ms + 420ms);
+  }
+  .draft-card.is-epica .card-foil::after {
+    animation-duration: 0.9s;
+  }
+  .draft-card.is-epica .seal-hi {
     animation: wax-warm 5.2s ease-in-out infinite;
+  }
+
+  /* elegir: la carta sube y destella, las otras se van */
+  .draft-card.is-picked {
+    transform: translateY(-8px) scale(1.03);
+  }
+  .draft-card.is-picked .card-frame {
+    filter: brightness(1.5) saturate(1.2);
+  }
+  .draft-card.is-picked .card-sheen {
+    animation: card-flash 0.3s ease-out both;
+  }
+  .draft-card.is-dismissed {
+    transform: translateY(14px) scale(0.96);
+  }
+}
+.draft-card.is-dismissed {
+  opacity: 0;
+  pointer-events: none;
+}
+.draft.is-picking .draft-card {
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-tilt {
+    transform: none;
+    transition: none;
+    animation: card-in 0.3s ease-out both;
+  }
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes card-flip {
+  0% {
+    transform: translateY(18px) rotateY(180deg) scale(0.92);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes card-flip-epica {
+  0% {
+    transform: translateY(24px) rotateY(180deg) scale(0.9);
+  }
+  70% {
+    transform: translateY(-4px) rotateY(-6deg) scale(1.03);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes foil-sweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-60%);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(60%);
+  }
+}
+@keyframes card-flash {
+  0% {
+    opacity: var(--sheen-o);
+  }
+  30% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0.2;
   }
 }
 @keyframes wax-warm {
@@ -498,6 +1003,7 @@
   }
 }
 
+/* ---------- celular: horizontal, emblema a la izquierda ---------- */
 @media (max-width: 720px) {
   .draft {
     padding-top: 96px;
@@ -510,79 +1016,128 @@
   }
   .draft-cards {
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
+    gap: 14px;
+    padding-bottom: 0;
   }
-  /* compacta: el sello ocupa su columna a lo alto de cabecera, nombre y texto */
   .game .draft-card {
-    --seal-w: 28px;
-    --band: auto;
-    grid-template-rows: auto auto 1fr auto;
-    grid-template-areas:
-      'top seal'
-      'name seal'
-      'text seal'
-      'cost cost';
+    --ch: 12px;
+    --fw: 6px;
+    --emb: 64px;
+    --icon: 40px;
+    --seal-w: 30px;
     min-height: 0;
-    padding: 14px 16px 16px;
-    row-gap: 6px;
-  }
-  .draft-card.is-poco {
-    --seal-w: 32px;
-  }
-  .draft-card.is-rara {
-    --seal-w: 38px;
+    text-align: left;
   }
   .draft-card.is-epica {
-    --seal-w: 42px;
+    --seal-w: 34px;
   }
-  .draft-seal,
-  .draft-card.is-epica .draft-seal {
-    margin: -2px -2px 0 0;
+  .card-inner {
+    grid-template-columns: var(--emb) minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr;
+    grid-template-areas:
+      'emb top'
+      'emb name'
+      'emb text'
+      'cost cost';
+    column-gap: 14px;
+    justify-items: stretch;
+    padding: 11px 14px 13px 12px;
+  }
+  .card-inner::before {
+    inset: 4px;
+  }
+  .draft-top {
+    grid-area: top;
+    grid-template-columns: 18px minmax(0, 1fr);
+    padding-right: 30px; /* libre el sello de la esquina */
+  }
+  .draft-emblem {
+    grid-area: emb;
+    align-self: start;
+    margin: 2px 0 0;
+  }
+  .draft-name {
+    grid-area: name;
+    justify-content: flex-start;
+    min-height: 0;
+    margin-top: 4px;
+    font-size: 19px;
   }
   .draft-text {
-    align-self: start;
+    grid-area: text;
+    margin-top: 3px;
+    font-size: 13.5px;
+    line-height: 1.4;
   }
   .draft-cost {
-    margin-top: 4px;
+    grid-area: cost;
+    margin-top: 8px;
     padding-top: 6px;
+    font-size: 13.5px;
+    line-height: 1.4;
+  }
+  /* el sello va a la esquina de arriba, sin cinta */
+  .draft-seal {
+    left: auto;
+    right: 12px;
+    top: -6px;
+    margin-left: 0;
+  }
+  .seal-ribbon,
+  .seal-crease {
+    display: none;
   }
 }
 
 /* alto chico con ancho de escritorio (celular acostado): entran las 3 sin scroll */
 @media (max-height: 480px) and (min-width: 721px) {
   .draft {
-    padding: 44px 20px 60px;
+    padding: 40px 20px 56px;
   }
   .draft .eyebrow {
-    margin-bottom: 22px;
+    margin-bottom: 12px;
+  }
+  .draft-cards {
+    padding-bottom: 14px;
   }
   .game .draft-card {
-    --band: 34px;
-    min-height: 0;
-    padding: 14px 16px 16px;
-    row-gap: 6px;
-  }
-  .draft-card.is-comun {
+    --ch: 12px;
+    --fw: 6px;
+    --emb: 52px;
+    --icon: 34px;
     --seal-w: 28px;
-  }
-  .draft-card.is-poco {
-    --seal-w: 32px;
-  }
-  .draft-card.is-rara {
-    --seal-w: 36px;
+    min-height: 0;
   }
   .draft-card.is-epica {
-    --seal-w: 48px;
+    --seal-w: 32px;
   }
-  .draft-card.is-epica .draft-seal {
-    margin-top: calc(-14px - var(--seal-w) * 0.5);
+  .card-inner {
+    padding: 8px 12px 18px;
+  }
+  .card-inner::before {
+    inset: 4px;
+  }
+  .draft-emblem {
+    margin: 4px 0 4px;
   }
   .draft-name {
-    font-size: 19px;
+    min-height: 0;
+    font-size: 17px;
   }
   .draft-text,
   .draft-cost {
-    font-size: 13px;
-    line-height: 1.4;
+    font-size: 12.5px;
+    line-height: 1.35;
+  }
+  .draft-text {
+    margin-top: 4px;
+  }
+  .draft-cost {
+    margin-top: 6px;
+    padding-top: 5px;
+  }
+  .seal-ribbon,
+  .seal-crease {
+    display: none;
   }
 }

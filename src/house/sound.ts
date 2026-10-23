@@ -102,6 +102,14 @@ function out(node: AudioNode): void {
   node.connect(reverb!)
 }
 
+// Para otros modulos de efectos (src/game/fx-sound.ts): contexto, salida al
+// bus con reverb y ruido blanco. null si el audio todavia no se desbloqueo.
+export function fxBus(): { c: AudioContext; out: (node: AudioNode) => void; noise: (s: number) => AudioBuffer } | null {
+  const c = ctx
+  if (!c || !master || !reverb) return null
+  return { c, out, noise: (sec) => noiseBuffer(c, sec) }
+}
+
 function noiseBuffer(c: AudioContext, seconds: number): AudioBuffer {
   const len = Math.floor(c.sampleRate * seconds)
   const b = c.createBuffer(1, len, c.sampleRate)

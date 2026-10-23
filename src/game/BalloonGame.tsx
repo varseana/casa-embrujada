@@ -5,6 +5,7 @@ import { music } from '../house/music'
 import { unlockAudio } from '../house/sound'
 import { BalloonScene, type GameResult, type Hud } from './engine'
 import Draft from './Draft'
+import { PowerIcon } from './icons'
 import { byId, DRAFT_EVERY, type PowerUp } from './powerups'
 import './game.css'
 
@@ -113,21 +114,30 @@ function GameOver({ result, onAgain }: { result: GameResult; onAgain: () => void
   )
 }
 
-// Mejoras activas en el HUD: una linea por mejora, con xN si se apilo.
+// Mejoras activas en el HUD: una fila por mejora (icono + nombre + xN si se
+// apilo); maximo HUD_POWERS filas y despues "+N".
+const HUD_POWERS = 8
 function Powers({ picks }: { picks: string[] }) {
   if (!picks.length) return null
   const ids = [...new Set(picks)]
+  const shown = ids.length > HUD_POWERS ? ids.slice(0, HUD_POWERS - 1) : ids
+  const rest = ids.length - shown.length
   return (
     <ul className="hud-powers" aria-label="Mejoras activas">
-      {ids.map((id) => {
+      {shown.map((id) => {
+        const p = byId(id)
         const n = picks.filter((x) => x === id).length
         return (
-          <li key={id}>
-            {byId(id)?.name}
-            {n > 1 && ` x${n}`}
+          <li key={id} className={p ? `is-${p.rarity}` : undefined}>
+            <span className="hud-power-glyph" aria-hidden="true">
+              <PowerIcon id={id} />
+            </span>
+            <span className="hud-power-name">{p?.name}</span>
+            {n > 1 && <span className="hud-power-n">x{n}</span>}
           </li>
         )
       })}
+      {rest > 0 && <li className="hud-power-more">+{rest}</li>}
     </ul>
   )
 }

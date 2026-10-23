@@ -1,6 +1,7 @@
-// Sellos de lacre de las cartas de mejora (aria-hidden: la rareza ya va en texto).
-// Va en Draft.tsx justo despues de .draft-top. Estilos en game.css
-// (.draft-seal, .seal-*, .stamp-*). Trazos generados una vez, fijos.
+// Adornos de las cartas de mejora (aria-hidden: la rareza ya va en texto).
+// DraftSeal: sello de lacre por rareza, cierra la carta sobre el marco de abajo.
+// EmblemPlate: placa octogonal con bisel y anillo de marcas detras del icono.
+// Estilos en game.css (.draft-seal, .seal-*, .stamp-*, .plate-*). Trazos fijos.
 import type { ReactElement } from 'react'
 import type { Rarity } from './powerups'
 
@@ -24,5 +25,28 @@ export function DraftSeal({ rarity }: { rarity: Rarity }) {
     <span className="draft-seal" aria-hidden="true">
       {SEALS[rarity]}
     </span>
+  )
+}
+
+// octogono = misma esquina chaflanada que el marco de la carta
+const OCT = 'M30 2H70L98 30V70L70 98H30L2 70V30Z'
+const OCT_IN = 'M32.5 8H67.5L92 32.5V67.5L67.5 92H32.5L8 67.5V32.5Z'
+
+export function EmblemPlate() {
+  return (
+    <svg className="draft-plate" viewBox="0 0 100 100" aria-hidden="true">
+      <path className="plate-edge" d={OCT} />
+      <path className="plate-face" d={OCT_IN} />
+      <path
+        className="plate-ticks"
+        d="M90.5 50.0L96.0 50.0M89.7 57.9L92.7 58.5M87.4 65.5L90.2 66.6M83.7 72.5L86.2 74.2M78.6 78.6L82.5 82.5M72.5 83.7L74.2 86.2M65.5 87.4L66.6 90.2M57.9 89.7L58.5 92.7M50.0 90.5L50.0 96.0M42.1 89.7L41.5 92.7M34.5 87.4L33.4 90.2M27.5 83.7L25.8 86.2M21.4 78.6L17.5 82.5M16.3 72.5L13.8 74.2M12.6 65.5L9.8 66.6M10.3 57.9L7.3 58.5M9.5 50.0L4.0 50.0M10.3 42.1L7.3 41.5M12.6 34.5L9.8 33.4M16.3 27.5L13.8 25.8M21.4 21.4L17.5 17.5M27.5 16.3L25.8 13.8M34.5 12.6L33.4 9.8M42.1 10.3L41.5 7.3M50.0 9.5L50.0 4.0M57.9 10.3L58.5 7.3M65.5 12.6L66.6 9.8M72.5 16.3L74.2 13.8M78.6 21.4L82.5 17.5M83.7 27.5L86.2 25.8M87.4 34.5L90.2 33.4M89.7 42.1L92.7 41.5"
+      />
+      <circle className="plate-ring" cx="50" cy="50" r="38" />
+      <circle className="plate-ring-in" cx="50" cy="50" r="35.5" />
+      <path
+        className="plate-studs"
+        d="M50 3.5L52.5 6L50 8.5L47.5 6ZM50 91.5L52.5 94L50 96.5L47.5 94ZM3.5 50L6 47.5L8.5 50L6 52.5ZM91.5 50L94 47.5L96.5 50L94 52.5Z"
+      />
+    </svg>
   )
 }
