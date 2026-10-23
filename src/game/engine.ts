@@ -13,6 +13,16 @@
 
 import { playGameOver, playPop, playThrow, playThud } from '../house/sound'
 import { paintRoom, roomBox, ROOMS, type Box, type Light } from './rooms'
+import {
+  byId,
+  DRAFT_EVERY,
+  drawCards,
+  maxScore,
+  pointCap,
+  statsFor,
+  type PowerUp,
+  type Stats,
+} from './powerups'
 
 export type Face = { id: string; url: string; name: string | null }
 
@@ -22,11 +32,12 @@ export type Hud = {
   round: number // 0-based: cuantos cuartos van
   roomName: string
   streak: number
+  maxDarts: number
+  picks: string[] // mejoras tomadas, en orden (se repiten si se apilan)
 }
 
 export type GameResult = { score: number; rooms: number }
 
-const MAX_DARTS = 3
 const WALK_MS = 1900
 const COLORS = ['#c8641e', '#b8432b', '#d9ccb0', '#5d6b3a', '#8a2a22', '#e8a13a']
 
@@ -45,11 +56,22 @@ type Balloon = {
 
 type Dart = { sx: number; sy: number; tx: number; ty: number; start: number; dur: number }
 type Stuck = { x: number; y: number; ang: number; s: number }
-type Shred = { x: number; y: number; vx: number; vy: number; rot: number; vr: number; life: number; color: string; size: number }
+type Shred = {
+  x: number
+  y: number
+  vx: number
+  vy: number
+  rot: number
+  vr: number
+  life: number
+  color: string
+  size: number
+}
 type Reveal = { face: Face; x: number; y: number; size: number; t0: number }
 type Float = { x: number; y: number; text: string; t0: number; big: boolean }
+type Link = { x1: number; y1: number; x2: number; y2: number; t0: number }
 
-type State = 'idle' | 'playing' | 'clearing' | 'walking' | 'over'
+type State = 'idle' | 'playing' | 'clearing' | 'drafting' | 'walking' | 'over'
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x))
@@ -79,14 +101,23 @@ export class BalloonScene {
   private state: State = 'idle'
   private round = 0
   private score = 0
-  private darts = MAX_DARTS
+  private darts = 3
   private streak = 0
+  private picks: string[] = []
+  private stats: Stats = statsFor([])
+  private drafts = 0 // elecciones hechas en la partida
+  private revives = 0
+  private roomShield = 0
+  private roomGuard = 0
+  private frozenUntil = 0
+  private slowUntil = 0
   private balloons: Balloon[] = []
-  private dart: Dart | null = null
+  private volley: Dart[] | null = null // los dardos del lanzamiento en vuelo
   private stuck: Stuck[] = []
   private shreds: Shred[] = []
   private reveals: Reveal[] = []
   private floats: Float[] = []
+  private links: Link[] = []
   private aim: { x: number; y: number } | null = null
   private walkStart = 0
   private walkSwitched = false
@@ -94,6 +125,7 @@ export class BalloonScene {
 
   onHud: ((hud: Hud) => void) | null = null
   onOver: ((result: GameResult) => void) | null = null
+  onDraft: ((cards: PowerUp[]) => void) | null = null
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -103,6 +135,10 @@ export class BalloonScene {
     this.calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     this.box = roomBox(this.w, this.h)
     this.resize()
+  }
+
+  private get unit() {
+    return Math.min(this.w, this.h)
   }
 
   private get room() {
@@ -195,13 +231,19 @@ export class BalloonScene {
   newGame() {
     this.round = 0
     this.score = 0
-    this.darts = MAX_DARTS
     this.streak = 0
-    this.dart = null
+    this.picks = []
+    this.stats = statsFor([])
+    this.darts = this.stats.maxDarts
+    this.drafts = 0
+    this.revives = 0
+    this.slowUntil = 0
+    this.volley = null
     this.stuck = []
     this.shreds = []
     this.reveals = []
     this.floats = []
+    this.links = []
     this.timer = null
     this.paintBackdrop()
     this.spawnRound()
@@ -216,6 +258,8 @@ export class BalloonScene {
       round: this.round,
       roomName: this.room.name,
       streak: this.streak,
+      maxDarts: this.stats.maxDarts,
+      picks: [...this.picks],
     })
   }
 
@@ -223,9 +267,13 @@ export class BalloonScene {
   private spawnRound() {
     const n = this.round
     const unit = Math.min(this.w, this.h)
-    const count = Math.min(5 + n * 2, 16)
-    const r = unit * 0.078 * Math.max(0.5, 1 - n * 0.08)
-    const speed = (0.035 + n * 0.016) * (unit / 800) // px por ms
+    // las mejoras solo pueden quitar globos: el techo de max_score cuenta min(5+2n,16)
+    const count = Math.max(3, Math.min(5 + n * 2, 16) - this.stats.fewer)
+    const r = unit * 0.078 * Math.max(0.5, 1 - n * 0.08) * this.stats.balloonSize
+    const speed = (0.035 + n * 0.016) * (unit / 800) * this.stats.balloonSpeed // px por ms
+    this.roomShield = this.stats.shield
+    this.roomGuard = this.stats.streakGuard
+    this.frozenUntil = this.stats.freezeMs ? this.time + this.stats.freezeMs + 420 : 0
     this.balloons = Array.from({ length: count }, (_, i) => {
       const a = Math.random() * Math.PI * 2
       const sp = speed * rand(0.6, 1.2)
@@ -253,13 +301,50 @@ export class BalloonScene {
     this.aim = null
   }
 
+  // Mira con temblor (Multi Dardo, Doble dardo): lo que se ve es donde cae.
+  private jittered(x: number, y: number): [number, number] {
+    const j = this.stats.jitter * this.unit
+    if (!j || this.calm) return [x, y]
+    const t = this.time
+    return [
+      x + j * (Math.sin(t * 0.031) + Math.sin(t * 0.017 + 1.3)) * 0.5,
+      y + j * (Math.sin(t * 0.027 + 0.7) + Math.sin(t * 0.013 + 2.1)) * 0.5,
+    ]
+  }
+
+  // Puntos de impacto del lanzamiento: abanico perpendicular a la linea de tiro.
+  private spread(x: number, y: number): [number, number][] {
+    const n = this.stats.shots
+    if (n <= 1) return [[x, y]]
+    const ang = Math.atan2(y - this.h * 0.98, x - this.w * 0.64)
+    const gap = this.unit * 0.04
+    return Array.from({ length: n }, (_, i) => {
+      const o = (i - (n - 1) / 2) * gap
+      return [x - Math.sin(ang) * o, y + Math.cos(ang) * o]
+    })
+  }
+
   throwAt = (x: number, y: number) => {
-    if (this.state !== 'playing' || this.dart || this.darts <= 0) return
+    if (this.state !== 'playing' || this.volley || this.darts <= 0) return
+    const [ax, ay] = this.jittered(x, y)
     const sx = this.w * 0.64
     const sy = this.h * 0.98
-    const dist = Math.hypot(x - sx, y - sy)
-    this.dart = { sx, sy, tx: x, ty: y, start: this.time, dur: clamp(220 + dist * 0.28, 260, 520) }
+    const dist = Math.hypot(ax - sx, ay - sy)
+    const dur = clamp(220 + dist * 0.28, 260, 520) * this.stats.flight
+    this.volley = this.spread(ax, ay).map(([tx, ty]) => ({ sx, sy, tx, ty, start: this.time, dur }))
     playThrow()
+  }
+
+  // Mejora elegida en las cartas: se aplica y la camara sigue al proximo cuarto.
+  choose = (id: string) => {
+    const p = byId(id)
+    if (this.state !== 'drafting' || !p) return
+    this.picks.push(id)
+    this.stats = statsFor(this.picks)
+    this.darts = Math.min(this.stats.maxDarts, this.darts + (p.grant ?? 0))
+    this.drafts += 1
+    this.walk()
+    this.emitHud()
   }
 
   // --- Logica -----------------------------------------------------------
@@ -280,11 +365,13 @@ export class BalloonScene {
     const maxX = this.w * 0.94
     const minY = this.h * 0.1
     const maxY = this.h * 0.68
+    // Calma previa congela, Reloj de arena frena
+    const mdt = this.time < this.frozenUntil ? 0 : this.time < this.slowUntil ? dt * 0.35 : dt
     for (const b of this.balloons) {
       if (this.time < b.born) continue
       const R = this.displayR(b)
-      b.x += b.vx * dt
-      b.y += b.vy * dt + Math.sin(this.time * 0.002 + b.wob) * 0.012 * dt
+      b.x += b.vx * mdt
+      b.y += b.vy * mdt + Math.sin(this.time * 0.002 + b.wob) * 0.012 * mdt
       if (b.x < minX + R) {
         b.x = minX + R
         b.vx = Math.abs(b.vx)
@@ -301,7 +388,7 @@ export class BalloonScene {
       }
     }
 
-    if (this.dart && this.time - this.dart.start >= this.dart.dur) this.resolveDart()
+    if (this.volley && this.time - this.volley[0].start >= this.volley[0].dur) this.resolveVolley()
 
     for (let i = this.shreds.length - 1; i >= 0; i--) {
       const s = this.shreds[i]
@@ -315,34 +402,83 @@ export class BalloonScene {
     }
     this.reveals = this.reveals.filter((r) => this.time - r.t0 < 1300)
     this.floats = this.floats.filter((f) => this.time - f.t0 < (f.big ? 1600 : 900))
+    this.links = this.links.filter((l) => this.time - l.t0 < 380)
 
     if (this.state === 'walking') this.updateWalk()
   }
 
-  private resolveDart() {
-    const d = this.dart!
-    this.dart = null
-    // globo mas cercano (menor z) que contenga el punto de impacto
-    let hit: Balloon | null = null
-    for (const b of this.balloons) {
-      if (this.time < b.born) continue
-      const R = this.displayR(b)
-      const dx = (d.tx - b.x) / (R * 0.86)
-      const dy = (d.ty - b.y) / R
-      if (dx * dx + dy * dy <= 1 && (!hit || b.z < hit.z)) hit = b
-    }
+  private live(): Balloon[] {
+    return this.balloons.filter((b) => this.time >= b.born)
+  }
 
-    if (hit) {
-      this.pop(hit)
+  // Globos que revienta un dardo en (x, y): el mas cercano (menor z) que lo
+  // contenga; con Dardo perforante, todos; con Iman, el mas proximo si roza.
+  private hitsAt(x: number, y: number): Balloon[] {
+    // distancia al globo en radios de su elipse: <= 1 es adentro
+    const reachOf = (b: Balloon) => {
+      const R = this.displayR(b) * this.stats.hitbox
+      return Math.hypot((x - b.x) / (R * 0.86), (y - b.y) / R) * R - R // px fuera del borde
+    }
+    const inside = this.live().filter((b) => reachOf(b) <= 0)
+    if (inside.length) return this.stats.pierce ? inside : [inside.reduce((a, b) => (b.z < a.z ? b : a))]
+    const reach = this.stats.magnet * this.unit
+    if (!reach) return []
+    let best: Balloon | null = null
+    let bestGap = reach
+    for (const b of this.live()) {
+      const gap = reachOf(b)
+      if (gap <= bestGap) {
+        best = b
+        bestGap = gap
+      }
+    }
+    return best ? [best] : []
+  }
+
+  private resolveVolley() {
+    const volley = this.volley!
+    this.volley = null
+    const hits = new Set<Balloon>()
+    for (const d of volley) for (const b of this.hitsAt(d.tx, d.ty)) hits.add(b)
+    if (hits.size) {
+      for (const b of hits) this.pop(b)
       return
     }
+    this.miss(volley)
+  }
 
-    // fallo: el dardo queda clavado y se pierde
-    this.streak = 0
-    this.darts -= 1
-    const ang = Math.atan2(d.ty - d.sy, d.tx - d.sx)
-    this.stuck.push({ x: d.tx, y: d.ty, ang, s: this.dartScale(d.ty) })
+  // Fallo: los dardos quedan clavados y se pierde uno (Escudo de cera lo salva).
+  private miss(volley: Dart[]) {
+    if (this.roomGuard > 0) this.roomGuard -= 1
+    else this.streak = 0
     playThud()
+    const d = volley[volley.length >> 1]
+    if (this.roomShield > 0) {
+      this.roomShield -= 1
+      this.floats.push({ x: d.tx, y: d.ty - 24, text: 'Escudo', t0: this.time, big: false })
+      this.emitHud()
+      return
+    }
+    this.darts -= 1
+    for (const v of volley) {
+      this.stuck.push({
+        x: v.tx,
+        y: v.ty,
+        ang: Math.atan2(v.ty - v.sy, v.tx - v.sx),
+        s: this.dartScale(v.ty),
+      })
+    }
+    if (this.darts <= 0 && this.revives < this.stats.revive) {
+      this.revives += 1
+      this.darts = 1
+      this.floats.push({
+        x: this.w / 2,
+        y: this.h * 0.36,
+        text: 'Segunda vela: +1 dardo',
+        t0: this.time,
+        big: true,
+      })
+    }
     this.emitHud()
     if (this.darts <= 0) {
       this.state = 'over'
@@ -356,15 +492,27 @@ export class BalloonScene {
     }
   }
 
-  private pop(b: Balloon) {
+  // Todo puntaje entra por aca: nunca pasa el techo de embrujada.max_score.
+  private addScore(pts: number) {
+    this.score = Math.min(this.score + pts, maxScore(this.round))
+  }
+
+  // primary = lo reventaste con el dardo; los de Onda y Cadena valen `share`
+  // y no suben la racha ni encadenan de nuevo.
+  private pop(b: Balloon, share = 1, primary = true) {
+    if (!this.balloons.includes(b)) return
     const R = this.displayR(b)
     this.balloons = this.balloons.filter((x) => x !== b)
-    this.streak += 1
+    if (primary) this.streak += 1
     // mas puntos por globo chico (lejos o de cuarto avanzado) y por racha
-    const size = clamp((Math.min(this.w, this.h) * 0.078) / R, 1, 3)
-    const mult = 1 + Math.min(this.streak - 1, 10) * 0.1
-    const pts = Math.round(100 * (1 + this.round * 0.25) * size * mult)
-    this.score += pts
+    const size = clamp((this.unit * 0.078) / R, 1, 3)
+    const mult = Math.min(2, 1 + Math.max(0, this.streak - 1) * this.stats.streakStep)
+    const power = this.stats.scoreMul * (this.darts === 1 ? this.stats.lastBreath : 1) * share
+    const pts = Math.min(
+      pointCap(this.round),
+      Math.round(100 * (1 + this.round * 0.25) * size * mult * power),
+    )
+    this.addScore(pts)
     this.floats.push({ x: b.x, y: b.y - R, text: `+${pts}`, t0: this.time, big: false })
 
     const n = 12 + ((Math.random() * 6) | 0)
@@ -386,15 +534,39 @@ export class BalloonScene {
     if (b.face) this.reveals.push({ face: b.face, x: b.x, y: b.y, size: R * 1.8, t0: this.time })
     playPop()
 
-    if (this.balloons.length === 0) this.clearRoom()
+    if (primary) {
+      if (this.stats.slowMs) this.slowUntil = this.time + this.stats.slowMs
+      const { splash, chain, harvest } = this.stats
+      if (splash) {
+        for (const o of this.live()) {
+          if (Math.hypot(o.x - b.x, o.y - b.y) <= R * splash + this.displayR(o)) this.pop(o, 0.5, false)
+        }
+      }
+      if (chain) {
+        const near = this.live()
+          .sort((p, q) => Math.hypot(p.x - b.x, p.y - b.y) - Math.hypot(q.x - b.x, q.y - b.y))
+          .slice(0, chain)
+        for (const o of near) {
+          this.links.push({ x1: b.x, y1: b.y, x2: o.x, y2: o.y, t0: this.time })
+          this.pop(o, 0.5, false)
+        }
+      }
+      if (harvest && this.streak % harvest === 0 && this.darts < this.stats.maxDarts) {
+        this.darts += 1
+        this.floats.push({ x: b.x, y: b.y - R - 28, text: '+1 dardo', t0: this.time, big: false })
+      }
+    }
+
+    if (this.balloons.length === 0 && this.state === 'playing') this.clearRoom()
     this.emitHud()
   }
 
   private clearRoom() {
-    const bonus = 250 * (this.round + 1)
-    this.score += bonus
-    const refill = this.darts < MAX_DARTS
-    this.darts = Math.min(MAX_DARTS, this.darts + 1)
+    const bonus = Math.round(250 * (this.round + 1) * this.stats.clearMul)
+    this.addScore(bonus)
+    const before = this.darts
+    this.darts = Math.min(this.stats.maxDarts, this.darts + this.stats.refill)
+    const refill = this.darts > before
     this.floats.push({
       x: this.w / 2,
       y: this.h * 0.36,
@@ -406,11 +578,20 @@ export class BalloonScene {
     this.timer = {
       at: this.time + 1100,
       run: () => {
-        this.state = 'walking'
-        this.walkStart = this.time
-        this.walkSwitched = false
+        // cada DRAFT_EVERY cuartos: cartas de mejora antes de caminar
+        const cards = (this.round + 1) % DRAFT_EVERY === 0 ? drawCards(this.picks, this.drafts) : []
+        if (cards.length && this.onDraft) {
+          this.state = 'drafting'
+          this.onDraft(cards)
+        } else this.walk()
       },
     }
+  }
+
+  private walk() {
+    this.state = 'walking'
+    this.walkStart = this.time
+    this.walkSwitched = false
   }
 
   private walkMs() {
@@ -470,9 +651,12 @@ export class BalloonScene {
     // de atras hacia adelante
     const order = [...this.balloons].sort((a, b) => b.z - a.z)
     for (const b of order) if (this.time >= b.born) this.drawBalloon(b)
+    this.drawLinks()
     this.drawShreds()
     this.drawReveals()
     ctx.restore()
+
+    if (this.stats.dark > 0) this.drawDark()
 
     if (cam.dark > 0) {
       ctx.fillStyle = `rgba(0,0,0,${cam.dark})`
@@ -482,7 +666,7 @@ export class BalloonScene {
     this.drawFlyingDart()
     this.drawFloats()
     if (this.state === 'playing') {
-      if (!this.dart && this.darts > 0) this.drawHeldDart()
+      if (!this.volley && this.darts > 0) this.drawHeldDart()
       this.drawReticle()
     }
   }
@@ -492,7 +676,10 @@ export class BalloonScene {
     ctx.save()
     ctx.globalCompositeOperation = 'lighter'
     for (const l of this.lights) {
-      const flick = 0.15 + Math.sin(this.time * 0.007 + l.phase) * 0.025 + Math.sin(this.time * 0.023 + l.phase * 2) * 0.02
+      const flick =
+        0.15 +
+        Math.sin(this.time * 0.007 + l.phase) * 0.025 +
+        Math.sin(this.time * 0.023 + l.phase * 2) * 0.02
       const g = ctx.createRadialGradient(l.x, l.y, 0, l.x, l.y, l.r)
       g.addColorStop(0, `rgba(232,161,58,${flick})`)
       g.addColorStop(1, 'rgba(232,161,58,0)')
@@ -516,7 +703,14 @@ export class BalloonScene {
     ctx.lineWidth = 1
     ctx.beginPath()
     ctx.moveTo(b.x, b.y + ry)
-    ctx.bezierCurveTo(b.x + sway, b.y + ry + R * 0.8, b.x - sway, b.y + ry + R * 1.5, b.x + sway * 0.5, b.y + ry + R * 2.2)
+    ctx.bezierCurveTo(
+      b.x + sway,
+      b.y + ry + R * 0.8,
+      b.x - sway,
+      b.y + ry + R * 1.5,
+      b.x + sway * 0.5,
+      b.y + ry + R * 2.2,
+    )
     ctx.stroke()
 
     ctx.save()
@@ -541,7 +735,14 @@ export class BalloonScene {
     ctx.globalAlpha = dim * 0.4
     ctx.fillRect(b.x - rx, b.y - ry, rx * 2, ry * 2)
     // brillo del latex
-    const sh = ctx.createRadialGradient(b.x - rx * 0.38, b.y - ry * 0.45, 0, b.x - rx * 0.38, b.y - ry * 0.45, R * 0.7)
+    const sh = ctx.createRadialGradient(
+      b.x - rx * 0.38,
+      b.y - ry * 0.45,
+      0,
+      b.x - rx * 0.38,
+      b.y - ry * 0.45,
+      R * 0.7,
+    )
     sh.addColorStop(0, 'rgba(255,248,230,0.55)')
     sh.addColorStop(1, 'rgba(255,248,230,0)')
     ctx.globalAlpha = dim
@@ -560,6 +761,33 @@ export class BalloonScene {
     ctx.closePath()
     ctx.fill()
     ctx.restore()
+  }
+
+  // Cadena de almas: hilo de brasa entre los globos que revientan juntos.
+  private drawLinks() {
+    const { ctx } = this
+    ctx.save()
+    ctx.lineWidth = 2
+    for (const l of this.links) {
+      ctx.strokeStyle = `rgba(232,161,58,${clamp(1 - (this.time - l.t0) / 380, 0, 1)})`
+      ctx.beginPath()
+      ctx.moveTo(l.x1, l.y1)
+      ctx.lineTo(l.x2, l.y2)
+      ctx.stroke()
+    }
+    ctx.restore()
+  }
+
+  // Luna llena: el cuarto a oscuras, solo se ve bien alrededor de la mira.
+  private drawDark() {
+    const { ctx, w, h } = this
+    const cx = this.aim?.x ?? w / 2
+    const cy = this.aim?.y ?? h * 0.4
+    const g = ctx.createRadialGradient(cx, cy, this.unit * 0.12, cx, cy, this.unit * 0.55)
+    g.addColorStop(0, 'rgba(0,0,0,0)')
+    g.addColorStop(1, `rgba(0,0,0,${0.82 * this.stats.dark})`)
+    ctx.fillStyle = g
+    ctx.fillRect(0, 0, w, h)
   }
 
   private drawShreds() {
@@ -672,12 +900,15 @@ export class BalloonScene {
   }
 
   private drawFlyingDart() {
-    const d = this.dart
-    if (!d) return
+    for (const d of this.volley ?? []) this.drawVolleyDart(d)
+  }
+
+  private drawVolleyDart(d: Dart) {
     const t = clamp((this.time - d.start) / d.dur, 0, 1)
     const dist = Math.hypot(d.tx - d.sx, d.ty - d.sy)
     const arc = dist * 0.16
-    const pos = (k: number) => [lerp(d.sx, d.tx, k), lerp(d.sy, d.ty, k) - Math.sin(Math.PI * k) * arc] as const
+    const pos = (k: number) =>
+      [lerp(d.sx, d.tx, k), lerp(d.sy, d.ty, k) - Math.sin(Math.PI * k) * arc] as const
     const [x, y] = pos(t)
     const [px, py] = pos(Math.max(0, t - 0.04))
     const ang = Math.atan2(y - py, x - px)
@@ -697,7 +928,7 @@ export class BalloonScene {
   private drawReticle() {
     if (!this.aim) return
     const { ctx } = this
-    const { x, y } = this.aim
+    const [x, y] = this.jittered(this.aim.x, this.aim.y)
     const r = 14
     ctx.save()
     ctx.strokeStyle = '#e8a13a'
@@ -711,6 +942,11 @@ export class BalloonScene {
     }
     ctx.fillStyle = '#e8a13a'
     ctx.fillRect(x - 1.5, y - 1.5, 3, 3)
+    // dardos extra: donde cae cada uno del abanico
+    const pts = this.spread(x, y)
+    if (pts.length > 1) {
+      for (const [px, py] of pts) if (px !== x || py !== y) ctx.fillRect(px - 2, py - 2, 4, 4)
+    }
     ctx.restore()
   }
 }

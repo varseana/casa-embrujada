@@ -4,6 +4,7 @@ import { isValidAlias, normalizeAlias, rememberedAlias, submitScore } from '../l
 import { music } from '../house/music'
 import { unlockAudio } from '../house/sound'
 import { BalloonScene, type GameResult, type Hud } from './engine'
+import { byId, DRAFT_EVERY, RARITY_LABEL, type PowerUp } from './powerups'
 import './game.css'
 
 type Props = {
@@ -11,8 +12,6 @@ type Props = {
 }
 
 type Phase = 'intro' | 'playing' | 'over'
-
-const MAX_DARTS = 3
 
 // Icono de dardo para el contador de vidas.
 function DartIcon({ spent }: { spent: boolean }) {
@@ -25,7 +24,8 @@ function DartIcon({ spent }: { spent: boolean }) {
   )
 }
 
-type Save = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; rank: number } | { kind: 'error'; msg: string }
+type Save =
+  { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; rank: number } | { kind: 'error'; msg: string }
 
 // Pantalla de fin: puntaje + alias de Amazon para entrar al leaderboard.
 function GameOver({ result, onAgain }: { result: GameResult; onAgain: () => void }) {
@@ -95,7 +95,9 @@ function GameOver({ result, onAgain }: { result: GameResult; onAgain: () => void
 
       {save.kind === 'saved' && (
         <p className="alias-saved" aria-live="polite">
-          {save.rank <= 3 ? `Entraste al podio: puesto ${save.rank}.` : `Guardado. Vas en el puesto ${save.rank}.`}
+          {save.rank <= 3
+            ? `Entraste al podio: puesto ${save.rank}.`
+            : `Guardado. Vas en el puesto ${save.rank}.`}
         </p>
       )}
 
@@ -110,6 +112,86 @@ function GameOver({ result, onAgain }: { result: GameResult; onAgain: () => void
   )
 }
 
+// Cartas de mejora: se elige 1 de 3 con clic, toque o las teclas 1-3.
+function Draft({
+  cards,
+  picks,
+  onPick,
+}: {
+  cards: PowerUp[]
+  picks: string[]
+  onPick: (id: string) => void
+}) {
+  // un instante sin responder: el ultimo clic de la partida no elige una carta sin querer
+  const [armed, setArmed] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setArmed(true), 450)
+    return () => clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    if (!armed) return
+    const onKey = (e: KeyboardEvent) => {
+      const card = cards[Number(e.key) - 1]
+      if (card) onPick(card.id)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [armed, cards, onPick])
+
+  return (
+    <div className="draft" role="dialog" aria-label="Elige una mejora">
+      <p className="eyebrow">Elige una mejora</p>
+      <div className="draft-cards">
+        {cards.map((c, i) => {
+          const owned = picks.filter((id) => id === c.id).length
+          return (
+            <button
+              key={c.id}
+              type="button"
+              className={`draft-card bracket is-${c.rarity}`}
+              onClick={() => armed && onPick(c.id)}
+              autoFocus={i === 0}
+            >
+              <span className="draft-top">
+                <span className="draft-rarity">{RARITY_LABEL[c.rarity]}</span>
+                <span className="draft-key" aria-hidden="true">
+                  {i + 1}
+                </span>
+              </span>
+              <span className="draft-name">
+                {c.name}
+                {owned > 0 && <span className="draft-owned"> x{owned + 1}</span>}
+              </span>
+              <span className="draft-text">{c.text}</span>
+              {c.cost && <span className="draft-cost">{c.cost}</span>}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// Mejoras activas en el HUD: una linea por mejora, con xN si se apilo.
+function Powers({ picks }: { picks: string[] }) {
+  if (!picks.length) return null
+  const ids = [...new Set(picks)]
+  return (
+    <ul className="hud-powers" aria-label="Mejoras activas">
+      {ids.map((id) => {
+        const n = picks.filter((x) => x === id).length
+        return (
+          <li key={id}>
+            {byId(id)?.name}
+            {n > 1 && ` x${n}`}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
 // Minijuego: el canvas es todo el juego; React solo pinta el HUD y las pantallas
 // de inicio y fin.
 export default function BalloonGame({ onExit }: Props) {
@@ -118,6 +200,7 @@ export default function BalloonGame({ onExit }: Props) {
   const [phase, setPhase] = useState<Phase>('intro')
   const [hud, setHud] = useState<Hud | null>(null)
   const [result, setResult] = useState<GameResult | null>(null)
+  const [cards, setCards] = useState<PowerUp[] | null>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -130,6 +213,7 @@ export default function BalloonGame({ onExit }: Props) {
       setResult(r)
       setPhase('over')
     }
+    scene.onDraft = setCards
     scene.start()
     window.addEventListener('resize', scene.resize)
     return () => {
@@ -155,8 +239,14 @@ export default function BalloonGame({ onExit }: Props) {
     unlockAudio() // dentro del gesto: el navegador deja sonar los efectos
     music.resume()
     setResult(null)
+    setCards(null)
     setPhase('playing')
     sceneRef.current?.newGame()
+  }, [])
+
+  const pick = useCallback((id: string) => {
+    sceneRef.current?.choose(id)
+    setCards(null)
   }, [])
 
   const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -165,7 +255,10 @@ export default function BalloonGame({ onExit }: Props) {
   }
 
   return (
-    <section className={`game is-${phase}`} aria-label="Minijuego: Revienta los globos">
+    <section
+      className={`game is-${phase}${cards ? ' is-drafting' : ''}`}
+      aria-label="Minijuego: Revienta los globos"
+    >
       <canvas
         ref={canvasRef}
         className="game-canvas"
@@ -187,14 +280,15 @@ export default function BalloonGame({ onExit }: Props) {
           <div className="hud-room">
             <p className="eyebrow">Cuarto {hud.round + 1}</p>
             <p className="hud-room-name">{hud.roomName}</p>
+            <Powers picks={hud.picks} />
           </div>
           <div className="hud-score" aria-live="polite">
             <p className="eyebrow">Puntaje</p>
             <p className="hud-score-num">{hud.score.toLocaleString('es-CR')}</p>
             {hud.streak >= 3 && <p className="hud-streak">Racha x{hud.streak}</p>}
           </div>
-          <div className="hud-darts" aria-label={`${hud.darts} de ${MAX_DARTS} dardos`}>
-            {Array.from({ length: MAX_DARTS }, (_, i) => (
+          <div className="hud-darts" aria-label={`${hud.darts} de ${hud.maxDarts} dardos`}>
+            {Array.from({ length: hud.maxDarts }, (_, i) => (
               <DartIcon key={i} spent={i >= hud.darts} />
             ))}
           </div>
@@ -209,12 +303,15 @@ export default function BalloonGame({ onExit }: Props) {
             <li>Apunta y haz clic (o toca la pantalla) para lanzar un dardo.</li>
             <li>Tienes 3 dardos. Si aciertas, el dardo vuelve a tu mano. Si fallas, lo pierdes.</li>
             <li>Limpia el cuarto para pasar al siguiente y recuperar un dardo.</li>
+            <li>Cada {DRAFT_EVERY} cuartos eliges 1 de 3 mejoras.</li>
           </ul>
           <button type="button" className="game-primary" onClick={play}>
             Empezar
           </button>
         </div>
       )}
+
+      {phase === 'playing' && cards && <Draft cards={cards} picks={hud?.picks ?? []} onPick={pick} />}
 
       {phase === 'over' && result && <GameOver result={result} onAgain={play} />}
 
